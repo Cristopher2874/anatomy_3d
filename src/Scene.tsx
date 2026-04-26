@@ -145,14 +145,25 @@ export default function Scene({ selectedConnection, onSelectConnection, viewSett
 
     setActiveView(null)
 
-    // Return camera to home position when selection is cleared
+    // When clearing selection, keep camera position but smoothly return target to center
     if (!controlsRef.current) {
       return
     }
 
+    const controls = controlsRef.current
+    const currentTarget = controls.target.clone()
+    const cameraPosition = controls.object.position.clone()
+
+    // Calculate new position maintaining the same view direction from the new target
+    const direction = cameraPosition.sub(currentTarget).normalize()
+    const distance = cameraPosition.distanceTo(currentTarget)
+    const newPosition = new Vector3()
+      .copy(controls.target)
+      .add(direction.multiplyScalar(distance))
+
     setCameraGoal({
       target: HOME_TARGET,
-      position: HOME_POSITION,
+      position: [newPosition.x, newPosition.y, newPosition.z],
     })
   }, [selectedConnection])
 

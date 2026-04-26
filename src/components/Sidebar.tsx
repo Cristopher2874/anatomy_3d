@@ -41,7 +41,7 @@ export default function Sidebar({
 
   return (
     <aside className="sidebar" aria-live="polite">
-      <p className="eyebrow">Panel academico</p>
+      <p className="eyebrow">Explorador</p>
       <p className={`view-state ${selectedConnection ? 'focus' : 'free'}`}>
         {selectedConnection ? 'Vista enfocada' : 'Vista libre'}
       </p>
@@ -119,13 +119,8 @@ export default function Sidebar({
 
           <p>{selectedConnection.infoText}</p>
 
-          <p className="microcopy">
-            Compartir conocimiento fortalece la amistad universitaria y acelera el aprendizaje en
-            equipo.
-          </p>
-
           <button type="button" className="share-button" onClick={handleShare}>
-            Compartir esta conexion con un companero de estudio
+            Compartir esta conexion
           </button>
 
           {shareMessage ? <p className="share-feedback">{shareMessage}</p> : null}
@@ -138,8 +133,13 @@ export default function Sidebar({
         <>
           <h2>Bienvenido al laboratorio colaborativo</h2>
           <p>
-            Selecciona una conexion para explorar. Recuerda que el conocimiento crece cuando se
-            comparte. Mucho exito en tu estudio.
+            Selecciona una conexion para explorar. Emplea los controles para personalizar tu vista.
+          </p>
+          <p>
+            Click derecho en la escena para rotar, scroll para zoom y click medio para desplazar.
+          </p>
+          <p>
+            Puedes ajustar los controles de visibilidad para enfocarte en lo que mas te interese.
           </p>
         </>
       )}
