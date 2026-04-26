@@ -5,7 +5,7 @@ import {
   useState,
   type RefObject,
 } from 'react'
-import { Canvas } from '@react-three/fiber'
+import { Canvas, useThree } from '@react-three/fiber'
 import {
   ContactShadows,
   Environment,
@@ -13,8 +13,8 @@ import {
   OrbitControls,
   type OrbitControlsProps,
 } from '@react-three/drei'
-import { useFrame, useThree } from '@react-three/fiber'
-import { MOUSE, Vector3 } from 'three'
+import { useFrame } from '@react-three/fiber'
+import { MOUSE, Vector3, Plane } from 'three'
 import type { OrbitControls as OrbitControlsImpl } from 'three-stdlib'
 import { easing } from 'maath'
 import ThalamusPlaceholder from './components/ThalamusPlaceholder'
@@ -23,7 +23,7 @@ import ConnectionLine from './components/ConnectionLine'
 import ModelLoader from './components/ModelLoader'
 import CameraControls from './components/CameraControls'
 import connectionsData from '../data/connections.json'
-import type { ConnectionWithType, ConnectionsSchema, Vec3 } from './types/connections'
+import type { ConnectionWithType, ConnectionsSchema, Vec3, ViewSettings } from './types/connections'
 import './Scene.css'
 
 const connections = connectionsData as ConnectionsSchema
@@ -122,13 +122,21 @@ function CameraAnimator({ controlsRef, goal, onSettled }: CameraAnimatorProps) {
 type SceneProps = {
   selectedConnection: ConnectionWithType | null
   onSelectConnection: (connection: ConnectionWithType | null) => void
+  viewSettings: ViewSettings
 }
 
-export default function Scene({ selectedConnection, onSelectConnection }: SceneProps) {
+export default function Scene({ selectedConnection, onSelectConnection, viewSettings }: SceneProps) {
   const controlsRef = useRef<OrbitControlsImpl | null>(null)
   const [cameraGoal, setCameraGoal] = useState<CameraGoal | null>(null)
   const [isAutoRotate, setIsAutoRotate] = useState(false)
   const [activeView, setActiveView] = useState<string | null>(null)
+
+  // Clipping plane: horizontal plane (normal pointing up) with offset from slider
+  const clippingPlane = useMemo(() => {
+    const plane = new Plane(new Vector3(0, 1, 0), 0)
+    plane.constant = -viewSettings.clippingOffset
+    return plane
+  }, [viewSettings.clippingOffset])
 
   useEffect(() => {
     if (selectedConnection) {
@@ -136,6 +144,16 @@ export default function Scene({ selectedConnection, onSelectConnection }: SceneP
     }
 
     setActiveView(null)
+
+    // Return camera to home position when selection is cleared
+    if (!controlsRef.current) {
+      return
+    }
+
+    setCameraGoal({
+      target: HOME_TARGET,
+      position: HOME_POSITION,
+    })
   }, [selectedConnection])
 
   const allConnections = [
@@ -203,7 +221,11 @@ export default function Scene({ selectedConnection, onSelectConnection }: SceneP
 
   return (
     <div className="scene-shell">
-      <Canvas camera={{ position: [3, 2, 4], fov: 60 }} onPointerMissed={() => onSelectConnection(null)}>
+      <Canvas
+        camera={{ position: [3, 2, 4], fov: 60 }}
+        onPointerMissed={() => onSelectConnection(null)}
+        gl={{ localClippingEnabled: true }}
+      >
         <color attach="background" args={['#f1f3f6']} />
 
         <Environment preset="city" />
@@ -211,19 +233,21 @@ export default function Scene({ selectedConnection, onSelectConnection }: SceneP
         <ambientLight intensity={0.5} />
         <directionalLight position={[5, 7, 3]} intensity={1.1} />
 
-        <Grid
-          position={[0, -0.56, 0]}
-          args={[16, 16]}
-          cellSize={0.45}
-          cellThickness={0.55}
-          cellColor="#8ea7b7"
-          sectionSize={1.8}
-          sectionThickness={1.15}
-          sectionColor="#67829a"
-          fadeDistance={22}
-          fadeStrength={1.2}
-          infiniteGrid
-        />
+        {viewSettings.layers.showGrid && (
+          <Grid
+            position={[0, -0.56, 0]}
+            args={[16, 16]}
+            cellSize={0.45}
+            cellThickness={0.55}
+            cellColor="#8ea7b7"
+            sectionSize={1.8}
+            sectionThickness={1.15}
+            sectionColor="#67829a"
+            fadeDistance={22}
+            fadeStrength={1.2}
+            infiniteGrid
+          />
+        )}
 
         <ContactShadows
           position={[0, -0.54, 0]}
@@ -241,7 +265,16 @@ export default function Scene({ selectedConnection, onSelectConnection }: SceneP
           scale={0.95}
           highlightedNodeName={selectedConnection ? getNodeNameFromConnection(selectedConnection.id) : null}
           highlightColor="#FB923C"
-          fallback={<ThalamusPlaceholder position={connections.nodoCentral.posicion} />}
+          clippingPlane={clippingPlane}
+          xrayMode={viewSettings.xrayMode}
+          fallback={
+            <ThalamusPlaceholder
+              position={connections.nodoCentral.posicion}
+              clippingPlane={clippingPlane}
+              xrayMode={viewSettings.xrayMode}
+              showLabel={viewSettings.layers.showLabels}
+            />
+          }
         />
 
         {allConnections.map((connection) => {
@@ -252,28 +285,36 @@ export default function Scene({ selectedConnection, onSelectConnection }: SceneP
 
           return (
             <group key={connection.id}>
-              <TargetOrganPlaceholder
-                position={organPosition}
-                color={connection.tipo === 'eferencia' ? '#FB923C' : '#93C5FD'}
-                isActive={isActive}
-                opacity={opacity}
-                onClick={(event) => {
-                  event.stopPropagation()
-                  handleSelectConnection(connection, organPosition)
-                }}
-              />
+              {viewSettings.layers.showTargetOrgans && (
+                <TargetOrganPlaceholder
+                  position={organPosition}
+                  color={connection.tipo === 'eferencia' ? '#FB923C' : '#93C5FD'}
+                  isActive={isActive}
+                  opacity={opacity}
+                  clippingPlane={clippingPlane}
+                  xrayMode={viewSettings.xrayMode}
+                  showLabel={viewSettings.layers.showLabels}
+                  label={connection.nombre}
+                  onClick={(event) => {
+                    event.stopPropagation()
+                    handleSelectConnection(connection, organPosition)
+                  }}
+                />
+              )}
 
-              <ConnectionLine
-                start={startPoint}
-                end={organPosition}
-                color={connection.colorLinea}
-                isActive={isActive}
-                opacity={opacity}
-                onClick={(event) => {
-                  event.stopPropagation()
-                  handleSelectConnection(connection, organPosition)
-                }}
-              />
+              {viewSettings.layers.showNerves && (
+                <ConnectionLine
+                  start={startPoint}
+                  end={organPosition}
+                  color={connection.colorLinea}
+                  isActive={isActive}
+                  opacity={opacity}
+                  onClick={(event) => {
+                    event.stopPropagation()
+                    handleSelectConnection(connection, organPosition)
+                  }}
+                />
+              )}
             </group>
           )
         })}

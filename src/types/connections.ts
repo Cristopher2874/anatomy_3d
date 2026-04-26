@@ -23,3 +23,16 @@ export type ConnectionsSchema = {
   eferencias: Connection[]
   aferencias: Connection[]
 }
+
+export type VisibilityLayers = {
+  showNerves: boolean
+  showTargetOrgans: boolean
+  showGrid: boolean
+  showLabels: boolean
+}
+
+export type ViewSettings = {
+  layers: VisibilityLayers
+  clippingOffset: number
+  xrayMode: boolean
+}

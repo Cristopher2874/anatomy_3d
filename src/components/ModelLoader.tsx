@@ -2,7 +2,7 @@ import { Component, Suspense, useEffect, useMemo, type ReactNode } from 'react'
 import { useGLTF } from '@react-three/drei'
 import type { ThreeEvent } from '@react-three/fiber'
 import type { ThreeElements } from '@react-three/fiber'
-import { Color, Mesh, MeshStandardMaterial, type Material, type Object3D } from 'three'
+import { Color, Mesh, MeshStandardMaterial, MeshPhysicalMaterial, type Material, type Object3D, type Plane } from 'three'
 import { clone } from 'three/examples/jsm/utils/SkeletonUtils.js'
 
 type ModelLoaderProps = ThreeElements['group'] & {
@@ -10,6 +10,8 @@ type ModelLoaderProps = ThreeElements['group'] & {
   fallback: ReactNode
   highlightedNodeName?: string | null
   highlightColor?: string
+  clippingPlane?: Plane
+  xrayMode?: boolean
   onClick?: (event: ThreeEvent<MouseEvent>) => void
 }
 
@@ -80,6 +82,8 @@ function ModelRoot({
   url,
   highlightedNodeName,
   highlightColor = '#ff5a5f',
+  clippingPlane,
+  xrayMode = false,
   onClick,
   ...groupProps
 }: ModelRootProps) {
@@ -88,7 +92,28 @@ function ModelRoot({
 
   useEffect(() => {
     applyNodeHighlight(clonedScene, highlightedNodeName, highlightColor)
-  }, [clonedScene, highlightedNodeName, highlightColor])
+
+    // Apply clipping plane and xray settings to all materials
+    clonedScene.traverse((obj) => {
+      if (!(obj instanceof Mesh)) {
+        return
+      }
+
+      const materials = Array.isArray(obj.material) ? obj.material : [obj.material]
+      materials.forEach((mat) => {
+        if (mat instanceof MeshStandardMaterial || mat instanceof MeshPhysicalMaterial) {
+          if (clippingPlane) {
+            mat.clippingPlanes = [clippingPlane]
+          }
+          if (xrayMode) {
+            mat.transparent = true
+            mat.opacity = Math.min(mat.opacity || 1, 0.45)
+            mat.wireframe = true
+          }
+        }
+      })
+    })
+  }, [clonedScene, highlightedNodeName, highlightColor, clippingPlane, xrayMode])
 
   return (
     <group {...groupProps} onClick={onClick}>

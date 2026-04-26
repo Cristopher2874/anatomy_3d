@@ -1,12 +1,23 @@
 import { useEffect, useState } from 'react'
-import type { ConnectionWithType } from '../types/connections'
+import type { ConnectionWithType, ViewSettings, VisibilityLayers } from '../types/connections'
 
 type SidebarProps = {
   selectedConnection: ConnectionWithType | null
+  viewSettings: ViewSettings
+  onToggleLayer: (layerKey: keyof VisibilityLayers) => void
+  onChangeClipping: (nextOffset: number) => void
+  onToggleXray: () => void
   onClearSelection: () => void
 }
 
-export default function Sidebar({ selectedConnection, onClearSelection }: SidebarProps) {
+export default function Sidebar({
+  selectedConnection,
+  viewSettings,
+  onToggleLayer,
+  onChangeClipping,
+  onToggleXray,
+  onClearSelection,
+}: SidebarProps) {
   const [shareMessage, setShareMessage] = useState('')
 
   useEffect(() => {
@@ -34,6 +45,70 @@ export default function Sidebar({ selectedConnection, onClearSelection }: Sideba
       <p className={`view-state ${selectedConnection ? 'focus' : 'free'}`}>
         {selectedConnection ? 'Vista enfocada' : 'Vista libre'}
       </p>
+
+      <section className="tools-card" aria-label="Capas de visibilidad">
+        <h3>Capas de Visibilidad</h3>
+
+        <label className="layer-toggle">
+          <input
+            type="checkbox"
+            checked={viewSettings.layers.showNerves}
+            onChange={() => onToggleLayer('showNerves')}
+          />
+          <span>Nervios (Lineas)</span>
+        </label>
+
+        <label className="layer-toggle">
+          <input
+            type="checkbox"
+            checked={viewSettings.layers.showTargetOrgans}
+            onChange={() => onToggleLayer('showTargetOrgans')}
+          />
+          <span>Organos destino</span>
+        </label>
+
+        <label className="layer-toggle">
+          <input
+            type="checkbox"
+            checked={viewSettings.layers.showGrid}
+            onChange={() => onToggleLayer('showGrid')}
+          />
+          <span>Grid de suelo</span>
+        </label>
+
+        <label className="layer-toggle">
+          <input
+            type="checkbox"
+            checked={viewSettings.layers.showLabels}
+            onChange={() => onToggleLayer('showLabels')}
+          />
+          <span>Etiquetas de texto</span>
+        </label>
+      </section>
+
+      <section className="tools-card" aria-label="Herramientas avanzadas">
+        <h3>Plano de Corte</h3>
+        <input
+          className="clip-slider"
+          type="range"
+          min={-3}
+          max={2}
+          step={0.01}
+          value={viewSettings.clippingOffset}
+          onChange={(event) => {
+            onChangeClipping(Number(event.target.value))
+          }}
+        />
+        <p className="tool-caption">Desplazamiento: {viewSettings.clippingOffset.toFixed(2)}</p>
+
+        <button
+          type="button"
+          className={`xray-button ${viewSettings.xrayMode ? 'active' : ''}`}
+          onClick={onToggleXray}
+        >
+          Modo X-Ray {viewSettings.xrayMode ? 'ON' : 'OFF'}
+        </button>
+      </section>
 
       {selectedConnection ? (
         <>

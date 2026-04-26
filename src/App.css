@@ -139,6 +139,55 @@
   color: #1e3a8a;
 }
 
+.sidebar .tools-card {
+  margin: 0.45rem 0 0.8rem;
+  padding: 0.7rem;
+  border: 1px solid rgba(148, 163, 184, 0.3);
+  border-radius: var(--radius-soft);
+  background: rgba(248, 250, 252, 0.75);
+}
+
+.sidebar .tools-card h3 {
+  margin: 0 0 0.55rem;
+  font-size: 0.92rem;
+}
+
+.sidebar .layer-toggle {
+  display: flex;
+  align-items: center;
+  gap: 0.45rem;
+  margin: 0.34rem 0;
+  font-size: 0.88rem;
+}
+
+.sidebar .clip-slider {
+  width: 100%;
+  margin-top: 0.2rem;
+}
+
+.sidebar .tool-caption {
+  font-size: 0.8rem;
+  color: #475569;
+  margin: 0.3rem 0 0.5rem;
+}
+
+.sidebar .xray-button {
+  width: 100%;
+  border: 0;
+  border-radius: var(--radius-soft);
+  padding: 0.6rem 0.72rem;
+  font-size: 0.88rem;
+  font-weight: 700;
+  background: rgba(37, 99, 235, 0.1);
+  color: #1e3a8a;
+  cursor: pointer;
+}
+
+.sidebar .xray-button.active {
+  background: rgba(251, 146, 60, 0.22);
+  color: #9a3412;
+}
+
 .sidebar .connection-type {
   font-size: 0.9rem;
   color: #475569;
