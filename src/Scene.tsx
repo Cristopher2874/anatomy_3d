@@ -122,6 +122,8 @@ export default function Scene({ selectedConnection, onSelectConnection, viewSett
   const [isAutoRotate, setIsAutoRotate] = useState(false)
   const [activeView, setActiveView] = useState<string | null>(null)
   const HOME_VIEW_MULTIPLIER = 3.8
+  const [manualHighlighted, setManualHighlighted] = useState<string[] | null>(null)
+  const [pinsWorld, setPinsWorld] = useState<Record<string, [number, number, number]>>({})
 
   // Clipping planes: Y (horizontal/top-bottom) and X (left-right)
   const clippingPlaneY = useMemo(() => {
@@ -136,11 +138,19 @@ export default function Scene({ selectedConnection, onSelectConnection, viewSett
     return plane
   }, [viewSettings.clippingOffsetX])
 
+  const allConnections = [
+    ...connections.eferencias.map((item) => ({ ...item, tipo: 'eferencia' as const })),
+    ...connections.aferencias.map((item) => ({ ...item, tipo: 'aferencia' as const })),
+  ]
+
   // Compute model bounds once the model group is available and notify parent for slider range.
   useEffect(() => {
     if (!modelGroup) return
 
     try {
+      // Ensure world matrices are up-to-date before computing bounds
+      modelGroup.updateMatrixWorld(true)
+
       const box = new Box3().setFromObject(modelGroup)
       const size = box.getSize(new Vector3())
       const sphere = box.getBoundingSphere(new Sphere())
@@ -153,6 +163,54 @@ export default function Scene({ selectedConnection, onSelectConnection, viewSett
       // ignore
     }
   }, [modelGroup, onModelBoundsComputed])
+
+  // When model is available, update its world matrices and precompute pin world positions
+  useEffect(() => {
+    if (!modelGroup) return
+    try {
+      modelGroup.updateMatrixWorld(true)
+
+      const next: Record<string, [number, number, number]> = {}
+      allConnections.forEach((c) => {
+        if (c.pin) {
+          const local = new Vector3(c.posicionDestino[0], c.posicionDestino[1], c.posicionDestino[2])
+          const world = local.clone().applyMatrix4(modelGroup.matrixWorld)
+          next[c.id] = [world.x, world.y, world.z]
+        }
+      })
+
+      setPinsWorld(next)
+      // eslint-disable-next-line no-console
+      console.info('[Scene] pinsWorld:', next)
+
+      // dev: dump node names once for mapping verification
+      try {
+        const names: string[] = []
+        modelGroup.traverse((obj: any) => {
+          if (obj.name) names.push(obj.name)
+        })
+        // eslint-disable-next-line no-console
+        console.info('[Scene] Model node names:', names.slice(0, 400))
+      } catch (e) {
+        // ignore
+      }
+    } catch (err) {
+      // ignore
+    }
+  }, [modelGroup])
+
+  // Build a reverse map from node name (lowercased) -> connection id for quick lookup on mesh click
+  const nodeNameToConnection = useMemo(() => {
+    const map = new Map<string, ConnectionWithType>()
+    allConnections.forEach((c) => {
+      const nodes: string[] | undefined = c.tipo === 'eferencia' ? ((c as any).mappedNodes as string[] | undefined) : undefined
+      const mapped = nodes ?? (CONNECTION_NODE_MAP[c.id] as string[] | undefined)
+      if (mapped && mapped.length > 0) {
+        mapped.forEach((n) => map.set((n || '').toLowerCase(), c))
+      }
+    })
+    return map
+  }, [allConnections])
 
   // Set an initial camera position relative to the model bounds once both model and controls are ready.
   const initialPositionSetRef = useRef(false)
@@ -203,10 +261,6 @@ export default function Scene({ selectedConnection, onSelectConnection, viewSett
     setActiveView(null)
   }, [selectedConnection])
 
-  const allConnections = [
-    ...connections.eferencias.map((item) => ({ ...item, tipo: 'eferencia' as const })),
-    ...connections.aferencias.map((item) => ({ ...item, tipo: 'aferencia' as const })),
-  ]
 
   const handleSelectConnection = (connection: ConnectionWithType, organPosition: Vec3) => {
     onSelectConnection(connection)
@@ -311,10 +365,35 @@ export default function Scene({ selectedConnection, onSelectConnection, viewSett
         <ModelLoader
           url={THALAMUS_MODEL_URL}
           ref={setModelGroup}
+          onMeshClick={(name: string) => {
+            if (!name) return
+            try {
+              if (modelGroup && controlsRef.current) {
+                const obj = modelGroup.getObjectByName(name) || modelGroup.getObjectByProperty('name', name)
+                if (obj) {
+                  obj.updateMatrixWorld(true)
+                  const pos = new Vector3()
+                  obj.getWorldPosition(pos)
+                  setManualHighlighted([name])
+                  setCameraGoal(buildFocusGoal(controlsRef.current, [pos.x, pos.y, pos.z]))
+                  // Try to map mesh name to a connection and select it
+                  const conn = nodeNameToConnection.get((name || '').toLowerCase())
+                  if (conn) {
+                    const worldPos = pinsWorld[conn.id] as [number, number, number] | undefined
+                    handleSelectConnection(conn, worldPos ?? [pos.x, pos.y, pos.z])
+                  }
+                }
+              }
+            } catch (err) {
+              // ignore
+            }
+          }}
           position={connections.nodoCentral.posicion}
           scale={0.95}
           highlightedNodeNames={
-            selectedConnection ? CONNECTION_NODE_MAP[selectedConnection.id] ?? [getNodeNameFromConnection(selectedConnection.id)] : null
+            selectedConnection
+              ? CONNECTION_NODE_MAP[selectedConnection.id] ?? [getNodeNameFromConnection(selectedConnection.id)]
+              : manualHighlighted
           }
           highlightColor="#FB923C"
           clippingPlanes={[clippingPlaneY, clippingPlaneX]}
@@ -338,27 +417,40 @@ export default function Scene({ selectedConnection, onSelectConnection, viewSett
 
           return (
             <group key={connection.id}>
-              {connection.pin && viewSettings.layers.showTargetOrgans && (
-                <Pin
-                  position={connection.posicionDestino}
-                  label={connection.nombre}
-                  image={(connection as any).pinImage}
-                  onClick={() => {
-                    handleSelectConnection(connection, connection.posicionDestino)
-                  }}
-                />
-              )}
+              {connection.pin && viewSettings.layers.showTargetOrgans && (() => {
+                // Use precomputed pin world positions when available
+                const worldPos = pinsWorld[connection.id]
+                const pos = worldPos ? new Vector3(worldPos[0], worldPos[1], worldPos[2]) : new Vector3(connection.posicionDestino[0], connection.posicionDestino[1], connection.posicionDestino[2])
+
+                return (
+                  <Pin
+                    position={[pos.x, pos.y, pos.z]}
+                    label={connection.nombre}
+                    image={(connection as any).pinImage}
+                    onClick={() => {
+                      handleSelectConnection(connection, [pos.x, pos.y, pos.z])
+                    }}
+                  />
+                )
+              })()}
 
               {viewSettings.layers.showNerves && connection.tipo === 'eferencia' && (
                 <ConnectionLine
                   startName={connections.nodoCentral.id}
                   endName={mapped ?? CONNECTION_NODE_MAP[connection.id] ?? [getNodeNameFromConnection(connection.id)]}
+                  // If mapped nodes don't exist in scene, fall back to explicit pin coordinate
+                  end={
+                    (!mapped || mapped.length === 0)
+                      ? (pinsWorld[connection.id] as [number, number, number] | undefined)
+                      : undefined
+                  }
                   color={connection.colorLinea}
                   isActive={isActive}
                   opacity={opacity}
                   onClick={(event) => {
                     event.stopPropagation()
-                    handleSelectConnection(connection, connection.posicionDestino)
+                    const world = pinsWorld[connection.id]
+                    handleSelectConnection(connection, world ?? connection.posicionDestino)
                   }}
                 />
               )}

@@ -14,6 +14,7 @@ type ModelLoaderProps = ThreeElements['group'] & {
   highlightColor?: string
   clippingPlanes?: Plane[]
   xrayMode?: boolean
+  onMeshClick?: (name: string) => void
   onClick?: (event: ThreeEvent<MouseEvent>) => void
 }
 
@@ -96,6 +97,10 @@ export const CONNECTION_NODE_MAP: Record<string, string[]> = {
   'ef-dorsomedial': ['superiorfrontal', 'rostralmiddlefrontal', 'medialorbitofrontal'],
   'ef-dorsallateral-pulvinar': ['superiorparietal', 'inferiorparietal'],
   'ef-geniculado-medial': ['superiortemporal'],
+  // Suggested mappings from requirements table
+  'eferencia_anterior': ['isthmuscingulate', 'rostralanteriorcingulate'],
+  'eferencia_dorsomedial': ['superiorfrontal', 'rostralmiddlefrontal'],
+  'eferencia_visual': ['pericalcarine', 'lateraloccipital'],
 }
 
 const ModelRoot = forwardRef<any, ModelRootProps>(function ModelRoot({
@@ -107,6 +112,16 @@ const ModelRoot = forwardRef<any, ModelRootProps>(function ModelRoot({
   onClick,
   ...groupProps
 }: ModelRootProps, ref) {
+  // Attach a pointer handler that reports the mesh name when clicked.
+  const handlePointerDown = (e: ThreeEvent<PointerEvent>) => {
+    e.stopPropagation()
+    const obj = (e as any).object as Object3D | undefined
+    if (!obj) return
+    // If a mesh, report its name (or parent name if anonymous)
+    const meshName = obj.name || (obj.parent && obj.parent.name) || ''
+    ;(groupProps as any).onMeshClick?.(meshName)
+  }
+
   // Configure DRACO decoder and load via GLTFLoader so Draco-compressed files load correctly.
   const gltf = useLoader(GLTFLoader, url, (loader) => {
     const draco = new DRACOLoader()
@@ -121,6 +136,13 @@ const ModelRoot = forwardRef<any, ModelRootProps>(function ModelRoot({
     // First apply hierarchical material injection: try to detect 'corteza' (cortex) and 'tálamo' (thalamus)
     clonedScene.traverse((obj) => {
       if (!(obj instanceof Mesh)) return
+
+      // Ensure each mesh has its own material instance to avoid shared-material side-effects
+      if (Array.isArray(obj.material)) {
+        obj.material = obj.material.map((m) => (m && typeof (m as any).clone === 'function' ? (m as any).clone() : m)) as any
+      } else if (obj.material && typeof (obj.material as any).clone === 'function') {
+        obj.material = (obj.material as any).clone()
+      }
 
       const rawName = obj.name || ''
       const lname = rawName.toLowerCase().normalize('NFD').replace(/[\u0300-\u036f]/g, '')
@@ -170,22 +192,22 @@ const ModelRoot = forwardRef<any, ModelRootProps>(function ModelRoot({
 
       const materials = Array.isArray(obj.material) ? obj.material : [obj.material]
       materials.forEach((mat) => {
-        if (mat instanceof MeshStandardMaterial || mat instanceof MeshPhysicalMaterial) {
-          if (clippingPlanes && clippingPlanes.length > 0) {
-            mat.clippingPlanes = clippingPlanes
-          }
-          if (xrayMode) {
-            mat.transparent = true
-            mat.opacity = Math.min(mat.opacity || 1, 0.45)
-            mat.wireframe = true
-          }
+        if (!(mat instanceof MeshStandardMaterial || mat instanceof MeshPhysicalMaterial)) return
+
+        if (clippingPlanes && clippingPlanes.length > 0) {
+          mat.clippingPlanes = clippingPlanes
+        }
+        if (xrayMode) {
+          mat.transparent = true
+          mat.opacity = Math.min(mat.opacity || 1, 0.45)
+          mat.wireframe = true
         }
       })
     })
   }, [clonedScene, highlightedNodeNames, highlightColor, clippingPlanes, xrayMode])
 
   return (
-    <group ref={ref} {...groupProps} onClick={onClick}>
+    <group ref={ref} {...groupProps} onClick={onClick} onPointerDown={handlePointerDown}>
       <primitive object={clonedScene} />
     </group>
   )

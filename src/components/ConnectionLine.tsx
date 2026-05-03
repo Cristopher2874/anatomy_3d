@@ -45,10 +45,19 @@ export default function ConnectionLine({
 
   function centerOf(obj: Object3D | null) {
     if (!obj) return new Vector3()
-    const box = new Box3().setFromObject(obj)
-    const c = new Vector3()
-    box.getCenter(c)
-    return c
+    // Prefer an accurate world position. If the object has geometry positioned
+    // such that its local origin is meaningful, use getWorldPosition. Otherwise
+    // fall back to bounding-box center.
+    const worldPos = new Vector3()
+    try {
+      obj.getWorldPosition(worldPos)
+      return worldPos
+    } catch (e) {
+      const box = new Box3().setFromObject(obj)
+      const c = new Vector3()
+      box.getCenter(c)
+      return c
+    }
   }
 
   useEffect(() => {
