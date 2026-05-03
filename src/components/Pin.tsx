@@ -15,8 +15,8 @@ export default function Pin({ position, label, image, onClick }: PinProps) {
   return (
     <group position={position}>
       <mesh onClick={(e) => { e.stopPropagation(); setOpen((s) => !s); onClick?.(e) }}>
-        <sphereGeometry args={[0.04, 12, 12]} />
-        <meshStandardMaterial color="#ffcd00" />
+        <sphereGeometry args={[0.075, 16, 16]} />
+        <meshStandardMaterial color="#ffcd00" emissive="#92400e" emissiveIntensity={0.65} />
       </mesh>
 
       <Html center distanceFactor={6} transform occlude>

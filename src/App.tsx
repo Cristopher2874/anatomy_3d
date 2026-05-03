@@ -6,8 +6,14 @@ import Scene from './Scene'
 import type { ConnectionWithType, ViewSettings } from './types/connections'
 import './App.css'
 
+type SelectedPieceInfo = {
+  name: string
+  infoText: string
+}
+
 function App() {
   const [selectedConnection, setSelectedConnection] = useState<ConnectionWithType | null>(null)
+  const [selectedPieceInfo, setSelectedPieceInfo] = useState<SelectedPieceInfo | null>(null)
   const [isAboutOpen, setIsAboutOpen] = useState(false)
   const [viewSettings, setViewSettings] = useState<ViewSettings>({
     layers: {
@@ -36,6 +42,7 @@ function App() {
         <section className="sidebar-panel">
           <Sidebar
             selectedConnection={selectedConnection}
+            selectedPieceInfo={selectedPieceInfo}
             viewSettings={viewSettings}
             clippingRange={{ min: -modelHalfHeight, max: modelHalfHeight }}
             clippingRangeX={{ min: -modelHalfWidth, max: modelHalfWidth }}
@@ -68,6 +75,7 @@ function App() {
             }}
             onClearSelection={() => {
               setSelectedConnection(null)
+              setSelectedPieceInfo(null)
             }}
           />
         </section>
@@ -76,6 +84,7 @@ function App() {
           <Scene
             selectedConnection={selectedConnection}
             onSelectConnection={setSelectedConnection}
+            onSelectedPieceInfoChange={setSelectedPieceInfo}
             viewSettings={viewSettings}
             onModelBoundsComputed={(bounds: { halfHeight: number; halfWidth: number }) => {
               setModelHalfHeight(bounds.halfHeight)

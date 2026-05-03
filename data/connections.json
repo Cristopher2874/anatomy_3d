@@ -1,110 +1,410 @@
 {
-  "nodoCentral": {
-    "id": "thalamus",
-    "nombre": "Tálamo",
-    "posicion": [0, 0, 0],
-    "descripcion": "Núcleo diencefálico que actúa como estación de relevo e integración para múltiples vías sensoriales y motoras."
-  },
-  "eferencias": [
-    {
-      "id": "ef-corteza-prefrontal",
-      "nombre": "Corteza Prefrontal",
-      "posicionLocal": [0.18, 0.12, 0.22],
-      "posicionDestino": [2.2, 1.1, 1.6],
-      "mappedNodes": ["isthmuscingulate", "rostralanteriorcingulate"],
-      "colorLinea": "#e63946",
-      "infoText": "Las proyecciones talamocorticales hacia la corteza prefrontal participan en funciones ejecutivas, memoria de trabajo y regulación cognitiva."
-    },
-    {
-      "id": "ef-corteza-motora",
-      "nombre": "Corteza Motora Primaria",
-      "posicionLocal": [0.24, 0.05, 0.14],
-      "posicionDestino": [2.5, 0.7, 0.8],
-      "mappedNodes": ["precentral"],
-      "colorLinea": "#e63946",
-      "infoText": "Las eferencias del tálamo hacia corteza motora contribuyen al inicio y modulación fina del movimiento voluntario."
-    },
-    {
-      "id": "ef-corteza-somatosensorial",
-      "nombre": "Corteza Somatosensorial",
-      "posicionLocal": [0.21, 0.02, 0.08],
-      "posicionDestino": [2.4, 0.4, 0.3],
-      "mappedNodes": ["postcentral"],
-      "colorLinea": "#e63946",
-      "infoText": "La vía talamocortical somatosensorial transmite información táctil y propioceptiva para la percepción consciente corporal."
-    },
-    {
-      "id": "ef-corteza-visual",
-      "nombre": "Corteza Visual",
-      "posicionLocal": [0.1, -0.02, -0.15],
-      "posicionDestino": [1.9, 0.3, -2.4],
-      "mappedNodes": ["pericalcarine", "lateraloccipital"],
-      "colorLinea": "#e63946",
-      "infoText": "A través del cuerpo geniculado lateral, el tálamo proyecta señales visuales hacia corteza occipital para el procesamiento de la visión."
-    }
-  ],
-  "aferencias": [
-    {
-      "id": "af-medula-espinal",
-      "nombre": "Médula Espinal",
-      "posicionLocal": [-0.16, -0.14, 0.06],
-      "posicionDestino": [-2.0, -2.1, 0.2],
-      "colorLinea": "#457b9d",
-      "infoText": "Fibras ascendentes espinotalámicas llevan dolor, temperatura y tacto grosero desde médula espinal hacia núcleos talámicos."
-    },
-    {
-      "id": "af-tronco-encefalico",
-      "nombre": "Tronco Encefálico",
-      "posicionLocal": [-0.2, -0.1, -0.02],
-      "posicionDestino": [-1.7, -1.5, -0.4],
-      "colorLinea": "#457b9d",
-      "infoText": "El tronco encefálico envía aferencias sensoriales y moduladoras al tálamo, integrando estado de alerta y señales somáticas."
-    },
-    {
-      "id": "af-via-gustativa",
-      "nombre": "Vía Gustativa",
-      "posicionLocal": [-0.18, -0.12, -0.06],
-      "posicionDestino": [-1.6, -1.4, -0.3],
-      "colorLinea": "#6a994e",
-      "infoText": "Vía gustativa (no presente como malla 3D) representada como pin con contenido 2D.",
-      "pin": true,
-      "pinImage": "/placeholders/gustatory.png"
-    },
-    {
-      "id": "af-oido-interno",
-      "nombre": "Oído Interno",
-      "posicionLocal": [-0.2, -0.14, -0.12],
-      "posicionDestino": [-1.8, -1.6, -0.5],
-      "colorLinea": "#6a994e",
-      "infoText": "Oído interno (no presente como malla 3D) — se abre una vista 2D con imágenes anatómicas.",
-      "pin": true,
-      "pinImage": "/placeholders/inner_ear.png"
-    },
-    {
-      "id": "af-globo-ocular",
-      "nombre": "Globo Ocular",
-      "posicionLocal": [-0.22, -0.13, 0.02],
-      "posicionDestino": [-1.7, -1.3, 0.8],
-      "colorLinea": "#6a994e",
-      "infoText": "Globo ocular (no presente como malla 3D) — pin con imagen 2D.",
-      "pin": true,
-      "pinImage": "/placeholders/eyeball.png"
-    },
-    {
-      "id": "af-cerebelo",
-      "nombre": "Cerebelo",
-      "posicionLocal": [-0.26, -0.04, -0.12],
-      "posicionDestino": [-2.3, -0.9, -1.4],
-      "colorLinea": "#457b9d",
-      "infoText": "Aferencias cerebelotalámicas transmiten información de coordinación y ajuste temporal para el control motor preciso."
-    },
-    {
-      "id": "af-ganglios-basales",
-      "nombre": "Ganglios Basales",
-      "posicionLocal": [-0.12, 0.1, 0.15],
-      "posicionDestino": [-1.9, 0.9, 1.2],
-      "colorLinea": "#457b9d",
-      "infoText": "Los ganglios basales modulan la actividad talámica a través de circuitos de selección e inhibición de programas motores."
-    }
-  ]
+    "nodoCentral":  {
+                        "id":  "thalamus",
+                        "nombre":  "TÃ¡lamo",
+                        "posicion":  [
+                                         0,
+                                         0,
+                                         0
+                                     ],
+                        "descripcion":  "NÃºcleo diencefÃ¡lico que actÃºa como estaciÃ³n de relevo e integraciÃ³n para mÃºltiples vÃ­as sensoriales y motoras."
+                    },
+    "eferencias":  [
+                       {
+                           "id":  "anterior",
+                           "nombre":  "Nucleo Anterior",
+                           "posicionLocal":  [
+                                                 0.18,
+                                                 0.12,
+                                                 0.22
+                                             ],
+                           "posicionDestino":  [
+                                                   2.2,
+                                                   1.1,
+                                                   1.6
+                                               ],
+                           "colorLinea":  "#ef4444",
+                           "infoText":  "Eferencias hacia giro del cingulo e hipotalamo, asociadas al tono emocional y memoria reciente.",
+                           "mappedNodes":  [
+                                               "lh.pial.DK.isthmuscingulate.obj",
+                                               "rh.pial.DK.isthmuscingulate.obj",
+                                               "lh.pial.DK.rostralanteriorcingulate.obj",
+                                               "rh.pial.DK.rostralanteriorcingulate.obj"
+                                           ],
+                           "externalTargets":  [
+                                                   "Hipotálamo"
+                                               ],
+                           "missingAssets":  [
+
+                                             ]
+                       },
+                       {
+                           "id":  "dorsomedial",
+                           "nombre":  "Nucleo Dorsomedial",
+                           "posicionLocal":  [
+                                                 0.24,
+                                                 0.1,
+                                                 0.16
+                                             ],
+                           "posicionDestino":  [
+                                                   2.35,
+                                                   1,
+                                                   1.1
+                                               ],
+                           "colorLinea":  "#ef4444",
+                           "infoText":  "Proyecciones a corteza prefrontal medial y orbitofrontal, vinculadas con integracion emocional, cognitiva y somatica.",
+                           "mappedNodes":  [
+                                               "lh.pial.DK.superiorfrontal.obj",
+                                               "rh.pial.DK.superiorfrontal.obj",
+                                               "lh.pial.DK.rostralmiddlefrontal.obj",
+                                               "rh.pial.DK.rostralmiddlefrontal.obj",
+                                               "lh.pial.DK.medialorbitofrontal.obj",
+                                               "rh.pial.DK.medialorbitofrontal.obj"
+                                           ],
+                           "externalTargets":  [
+                                                   "Hipotálamo",
+                                                   "Otros núcleos talámicos"
+                                               ],
+                           "missingAssets":  [
+
+                                             ]
+                       },
+                       {
+                           "id":  "dorsal_lateral",
+                           "nombre":  "Nucleo Dorsal Lateral",
+                           "posicionLocal":  [
+                                                 0.22,
+                                                 0.08,
+                                                 0.12
+                                             ],
+                           "posicionDestino":  [
+                                                   2.4,
+                                                   0.8,
+                                                   0.6
+                                               ],
+                           "colorLinea":  "#ef4444",
+                           "infoText":  "Proyecciones corticales parietales (superior e inferior) segun tabla clinica para circuitos de asociacion.",
+                           "mappedNodes":  [
+                                               "lh.pial.DK.superiorparietal.obj",
+                                               "rh.pial.DK.superiorparietal.obj",
+                                               "lh.pial.DK.inferiorparietal.obj",
+                                               "rh.pial.DK.inferiorparietal.obj"
+                                           ],
+                           "externalTargets":  [
+                                                   "Otros núcleos talámicos"
+                                               ],
+                           "missingAssets":  [
+
+                                             ]
+                       },
+                       {
+                           "id":  "ventral_anterior",
+                           "nombre":  "Nucleo Ventral Anterior",
+                           "posicionLocal":  [
+                                                 0.24,
+                                                 0.05,
+                                                 0.14
+                                             ],
+                           "posicionDestino":  [
+                                                   2.5,
+                                                   0.7,
+                                                   0.8
+                                               ],
+                           "colorLinea":  "#ef4444",
+                           "infoText":  "Eferencias motoras hacia corteza premotora y areas precentrales, influyendo en actividad cortical motora.",
+                           "mappedNodes":  [
+                                               "lh.pial.DK.precentral.obj",
+                                               "rh.pial.DK.precentral.obj"
+                                           ],
+                           "externalTargets":  [
+                                                   "Formación reticular",
+                                                   "Sustancia negra",
+                                                   "Cuerpo estriado",
+                                                   "Otros núcleos talámicos"
+                                               ],
+                           "missingAssets":  [
+
+                                             ]
+                       },
+                       {
+                           "id":  "ventral_lateral",
+                           "nombre":  "Nucleo Ventral Lateral",
+                           "posicionLocal":  [
+                                                 0.23,
+                                                 0.03,
+                                                 0.11
+                                             ],
+                           "posicionDestino":  [
+                                                   2.45,
+                                                   0.55,
+                                                   0.55
+                                               ],
+                           "colorLinea":  "#ef4444",
+                           "infoText":  "Circuito motor complementario (tambien hacia precentral), relevante para modulacion de salida motora.",
+                           "mappedNodes":  [
+                                               "lh.pial.DK.precentral.obj",
+                                               "rh.pial.DK.precentral.obj"
+                                           ],
+                           "externalTargets":  [
+                                                   "Cerebelo",
+                                                   "Núcleo rojo",
+                                                   "Otros núcleos talámicos"
+                                               ],
+                           "missingAssets":  [
+
+                                             ]
+                       },
+                       {
+                           "id":  "vpm",
+                           "nombre":  "Nucleo Ventral Posteromedial (VPM)",
+                           "posicionLocal":  [
+                                                 0.21,
+                                                 0.02,
+                                                 0.08
+                                             ],
+                           "posicionDestino":  [
+                                                   2.4,
+                                                   0.4,
+                                                   0.3
+                                               ],
+                           "colorLinea":  "#ef4444",
+                           "infoText":  "Proyecciones somatosensoriales hacia postcentral, relacionadas con sensibilidad facial y vias trigeminales.",
+                           "mappedNodes":  [
+                                               "lh.pial.DK.postcentral.obj",
+                                               "rh.pial.DK.postcentral.obj"
+                                           ],
+                           "externalTargets":  [
+
+                                               ],
+                           "missingAssets":  [
+
+                                             ]
+                       },
+                       {
+                           "id":  "vpl",
+                           "nombre":  "Nucleo Ventral Posterolateral (VPL)",
+                           "posicionLocal":  [
+                                                 0.2,
+                                                 0,
+                                                 0.06
+                                             ],
+                           "posicionDestino":  [
+                                                   2.35,
+                                                   0.35,
+                                                   0.18
+                                               ],
+                           "colorLinea":  "#ef4444",
+                           "infoText":  "Proyecciones somatosensoriales hacia postcentral, vinculadas a sensibilidad corporal de lemniscos espinales.",
+                           "mappedNodes":  [
+                                               "lh.pial.DK.postcentral.obj",
+                                               "rh.pial.DK.postcentral.obj"
+                                           ],
+                           "externalTargets":  [
+
+                                               ],
+                           "missingAssets":  [
+
+                                             ]
+                       },
+                       {
+                           "id":  "geniculado_medial",
+                           "nombre":  "Cuerpo Geniculado Medial",
+                           "posicionLocal":  [
+                                                 0.14,
+                                                 -0.01,
+                                                 -0.08
+                                             ],
+                           "posicionDestino":  [
+                                                   2,
+                                                   0.35,
+                                                   -1.1
+                                               ],
+                           "colorLinea":  "#ef4444",
+                           "infoText":  "Radiaciones auditivas hacia giro temporal superior (superiortemporal), soporte talamico de audicion.",
+                           "mappedNodes":  [
+                                               "lh.pial.DK.superiortemporal.obj",
+                                               "rh.pial.DK.superiortemporal.obj"
+                                           ],
+                           "externalTargets":  [
+
+                                               ],
+                           "missingAssets":  [
+
+                                             ]
+                       },
+                       {
+                           "id":  "geniculado_lateral",
+                           "nombre":  "Cuerpo Geniculado Lateral",
+                           "posicionLocal":  [
+                                                 0.1,
+                                                 -0.02,
+                                                 -0.15
+                                             ],
+                           "posicionDestino":  [
+                                                   1.9,
+                                                   0.3,
+                                                   -2.4
+                                               ],
+                           "colorLinea":  "#ef4444",
+                           "infoText":  "Radiaciones opticas hacia corteza visual (pericalcarine y lateraloccipital), clave en procesamiento visual.",
+                           "mappedNodes":  [
+                                               "lh.pial.DK.pericalcarine.obj",
+                                               "rh.pial.DK.pericalcarine.obj",
+                                               "lh.pial.DK.lateraloccipital.obj",
+                                               "rh.pial.DK.lateraloccipital.obj"
+                                           ],
+                           "externalTargets":  [
+
+                                               ],
+                           "missingAssets":  [
+
+                                             ]
+                       },
+                       {
+                           "id":  "intralaminar",
+                           "nombre":  "Nucleo Intralaminar",
+                           "posicionLocal":  [
+                                                 0.16,
+                                                 0.02,
+                                                 -0.02
+                                             ],
+                           "posicionDestino":  [
+                                                   2.05,
+                                                   0.45,
+                                                   0
+                                               ],
+                           "colorLinea":  "#ef4444",
+                           "infoText":  "Proyeccion cortical difusa (incluye influencia sobre corteza y cuerpo estriado) segun la tabla clinica. Se representa como via de distribucion amplia sin nodos corticales unicos.",
+                           "mappedNodes":  [
+
+                                           ],
+                           "externalTargets":  [
+                                                   "Cuerpo estriado",
+                                                   "Otros núcleos talámicos"
+                                               ],
+                           "missingAssets":  [
+                                                 "Imagen 2D de Cuerpo Estriado"
+                                             ]
+                       }
+                   ],
+    "aferencias":  [
+                       {
+                           "id":  "af-medula-espinal",
+                           "nombre":  "MÃ©dula Espinal",
+                           "posicionLocal":  [
+                                                 -0.16,
+                                                 -0.14,
+                                                 0.06
+                                             ],
+                           "posicionDestino":  [
+                                                   -2.0,
+                                                   -2.1,
+                                                   0.2
+                                               ],
+                           "colorLinea":  "#457b9d",
+                           "infoText":  "Fibras ascendentes espinotalÃ¡micas llevan dolor, temperatura y tacto grosero desde mÃ©dula espinal hacia nÃºcleos talÃ¡micos."
+                       },
+                       {
+                           "id":  "af-tronco-encefalico",
+                           "nombre":  "Tronco EncefÃ¡lico",
+                           "posicionLocal":  [
+                                                 -0.2,
+                                                 -0.1,
+                                                 -0.02
+                                             ],
+                           "posicionDestino":  [
+                                                   -1.7,
+                                                   -1.5,
+                                                   -0.4
+                                               ],
+                           "colorLinea":  "#457b9d",
+                           "infoText":  "El tronco encefÃ¡lico envÃ­a aferencias sensoriales y moduladoras al tÃ¡lamo, integrando estado de alerta y seÃ±ales somÃ¡ticas."
+                       },
+                       {
+                           "id":  "af-via-gustativa",
+                           "nombre":  "VÃ­a Gustativa",
+                           "posicionLocal":  [
+                                                 -0.18,
+                                                 -0.12,
+                                                 -0.06
+                                             ],
+                           "posicionDestino":  [
+                                                   -1.6,
+                                                   -1.4,
+                                                   -0.3
+                                               ],
+                           "colorLinea":  "#6a994e",
+                           "infoText":  "VÃ­a gustativa (no presente como malla 3D) representada como pin con contenido 2D.",
+                           "pin":  true,
+                           "pinImage":  "/placeholders/gustatory.png"
+                       },
+                       {
+                           "id":  "af-oido-interno",
+                           "nombre":  "OÃ­do Interno",
+                           "posicionLocal":  [
+                                                 -0.2,
+                                                 -0.14,
+                                                 -0.12
+                                             ],
+                           "posicionDestino":  [
+                                                   -1.8,
+                                                   -1.6,
+                                                   -0.5
+                                               ],
+                           "colorLinea":  "#6a994e",
+                           "infoText":  "OÃ­do interno (no presente como malla 3D) â€” se abre una vista 2D con imÃ¡genes anatÃ³micas.",
+                           "pin":  true,
+                           "pinImage":  "/placeholders/inner_ear.png"
+                       },
+                       {
+                           "id":  "af-globo-ocular",
+                           "nombre":  "Globo Ocular",
+                           "posicionLocal":  [
+                                                 -0.22,
+                                                 -0.13,
+                                                 0.02
+                                             ],
+                           "posicionDestino":  [
+                                                   -1.7,
+                                                   -1.3,
+                                                   0.8
+                                               ],
+                           "colorLinea":  "#6a994e",
+                           "infoText":  "Globo ocular (no presente como malla 3D) â€” pin con imagen 2D.",
+                           "pin":  true,
+                           "pinImage":  "/placeholders/eyeball.png"
+                       },
+                       {
+                           "id":  "af-cerebelo",
+                           "nombre":  "Cerebelo",
+                           "posicionLocal":  [
+                                                 -0.26,
+                                                 -0.04,
+                                                 -0.12
+                                             ],
+                           "posicionDestino":  [
+                                                   -2.3,
+                                                   -0.9,
+                                                   -1.4
+                                               ],
+                           "colorLinea":  "#457b9d",
+                           "infoText":  "Aferencias cerebelotalÃ¡micas transmiten informaciÃ³n de coordinaciÃ³n y ajuste temporal para el control motor preciso."
+                       },
+                       {
+                           "id":  "af-ganglios-basales",
+                           "nombre":  "Ganglios Basales",
+                           "posicionLocal":  [
+                                                 -0.12,
+                                                 0.1,
+                                                 0.15
+                                             ],
+                           "posicionDestino":  [
+                                                   -1.9,
+                                                   0.9,
+                                                   1.2
+                                               ],
+                           "colorLinea":  "#457b9d",
+                           "infoText":  "Los ganglios basales modulan la actividad talÃ¡mica a travÃ©s de circuitos de selecciÃ³n e inhibiciÃ³n de programas motores."
+                       }
+                   ]
 }

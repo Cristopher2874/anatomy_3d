@@ -75,14 +75,31 @@ function applyNodeHighlight(
   highlightedNodeNames: string[] | null | undefined,
   highlightColor: string,
 ) {
-  const set = new Set((highlightedNodeNames || []).filter(Boolean))
+  const toCanonical = (value: string) => value.toLowerCase().replace(/[^a-z0-9]/g, '')
+  const buildNameVariants = (raw: string) => {
+    const safe = raw || ''
+    const withoutExt = safe.replace(/\.(obj|stl|mtl)$/i, '')
+    const tokens = withoutExt
+      .split(/[.\-_ ]+/)
+      .map((token) => token.trim().toLowerCase())
+      .filter(Boolean)
+    const region = tokens.length > 0 ? tokens[tokens.length - 1] : withoutExt.toLowerCase()
+    return [safe, withoutExt, region]
+  }
+
+  const set = new Set<string>()
+  ;(highlightedNodeNames || []).filter(Boolean).forEach((name) => {
+    buildNameVariants(name).forEach((variant) => set.add(toCanonical(variant)))
+  })
 
   root.traverse((obj) => {
     if (!(obj instanceof Mesh)) {
       return
     }
 
-    const isHighlighted = set.size > 0 ? set.has(obj.name) : false
+    const isHighlighted = set.size > 0
+      ? buildNameVariants(obj.name || '').some((variant) => set.has(toCanonical(variant)))
+      : false
 
     if (Array.isArray(obj.material)) {
       obj.material.forEach((mat) => setMaterialHighlight(mat, isHighlighted, highlightColor))
@@ -95,18 +112,39 @@ function applyNodeHighlight(
 
 // Mapping from connection IDs to cortex node names inside the combined model.
 export const CONNECTION_NODE_MAP: Record<string, string[]> = {
-  'ef-corteza-prefrontal': ['isthmuscingulate', 'rostralanteriorcingulate'],
-  'ef-corteza-motora': ['precentral'],
-  'ef-corteza-somatosensorial': ['postcentral'],
-  'ef-corteza-visual': ['pericalcarine', 'lateraloccipital'],
-  // Additional mappings for clinical table
-  'ef-dorsomedial': ['superiorfrontal', 'rostralmiddlefrontal', 'medialorbitofrontal'],
-  'ef-dorsallateral-pulvinar': ['superiorparietal', 'inferiorparietal'],
-  'ef-geniculado-medial': ['superiortemporal'],
-  // Suggested mappings from requirements table
-  'eferencia_anterior': ['isthmuscingulate', 'rostralanteriorcingulate'],
-  'eferencia_dorsomedial': ['superiorfrontal', 'rostralmiddlefrontal'],
-  'eferencia_visual': ['pericalcarine', 'lateraloccipital'],
+  anterior: [
+    'lh.pial.DK.isthmuscingulate.obj', 'rh.pial.DK.isthmuscingulate.obj',
+    'lh.pial.DK.rostralanteriorcingulate.obj', 'rh.pial.DK.rostralanteriorcingulate.obj',
+  ],
+  dorsomedial: [
+    'lh.pial.DK.superiorfrontal.obj', 'rh.pial.DK.superiorfrontal.obj',
+    'lh.pial.DK.rostralmiddlefrontal.obj', 'rh.pial.DK.rostralmiddlefrontal.obj',
+    'lh.pial.DK.medialorbitofrontal.obj', 'rh.pial.DK.medialorbitofrontal.obj',
+  ],
+  dorsal_lateral: [
+    'lh.pial.DK.superiorparietal.obj', 'rh.pial.DK.superiorparietal.obj',
+    'lh.pial.DK.inferiorparietal.obj', 'rh.pial.DK.inferiorparietal.obj',
+  ],
+  ventral_anterior: [
+    'lh.pial.DK.precentral.obj', 'rh.pial.DK.precentral.obj',
+  ],
+  ventral_lateral: [
+    'lh.pial.DK.precentral.obj', 'rh.pial.DK.precentral.obj',
+  ],
+  vpm: [
+    'lh.pial.DK.postcentral.obj', 'rh.pial.DK.postcentral.obj',
+  ],
+  vpl: [
+    'lh.pial.DK.postcentral.obj', 'rh.pial.DK.postcentral.obj',
+  ],
+  intralaminar: [],
+  geniculado_medial: [
+    'lh.pial.DK.superiortemporal.obj', 'rh.pial.DK.superiortemporal.obj',
+  ],
+  geniculado_lateral: [
+    'lh.pial.DK.pericalcarine.obj', 'rh.pial.DK.pericalcarine.obj',
+    'lh.pial.DK.lateraloccipital.obj', 'rh.pial.DK.lateraloccipital.obj',
+  ],
 }
 
 const ModelRoot = forwardRef<any, ModelRootProps>(function ModelRoot({

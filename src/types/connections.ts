@@ -8,6 +8,8 @@ export type Connection = {
   colorLinea: string
   infoText: string
   mappedNodes?: string[]
+  externalTargets?: string[]
+  missingAssets?: string[]
   pin?: boolean
   pinImage?: string
 }

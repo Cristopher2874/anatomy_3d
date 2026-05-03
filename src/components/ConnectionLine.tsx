@@ -11,6 +11,10 @@ type ConnectionLineProps = {
   // Option B: object names inside the scene (will compute bounding-box centers)
   startName?: string
   endName?: string | string[]
+  anchorCenter?: [number, number, number]
+  startSurfaceOffset?: number
+  endSurfaceOffset?: number
+  arcHeight?: number
   color: string
   isActive?: boolean
   opacity?: number
@@ -24,6 +28,10 @@ export default function ConnectionLine({
   end,
   startName,
   endName,
+  anchorCenter,
+  startSurfaceOffset = 0,
+  endSurfaceOffset = 0,
+  arcHeight = 0.45,
   color,
   isActive = false,
   opacity = 1,
@@ -33,36 +41,116 @@ export default function ConnectionLine({
   const [computedStart, setComputedStart] = useState<[number, number, number] | null>(null)
   const [computedEnd, setComputedEnd] = useState<[number, number, number] | null>(null)
 
-  const mid = useMemo(() => {
-    if (computedStart && computedEnd) {
-      const x = (computedStart[0] + computedEnd[0]) / 2
-      const y = (computedStart[1] + computedEnd[1]) / 2 + 0.45
-      const z = (computedStart[2] + computedEnd[2]) / 2
-      return [x, y, z] as [number, number, number]
+  const toCanonical = (value: string) => (value || '').toLowerCase().replace(/[^a-z0-9]/g, '')
+  const buildNameVariants = (value: string) => {
+    const raw = value || ''
+    const withoutExt = raw.replace(/\.(obj|stl|mtl)$/i, '')
+    const tokens = withoutExt.split(/[.\-_ ]+/).map((part) => part.toLowerCase()).filter(Boolean)
+    const region = tokens.length > 0 ? tokens[tokens.length - 1] : withoutExt.toLowerCase()
+    return [raw, withoutExt, region]
+  }
+
+  const findObjectByNameFlexible = (name: string) => {
+    const exact = scene.getObjectByName(name)
+    if (exact) return exact
+
+    const withoutExt = name.replace(/\.(obj|stl|mtl)$/i, '')
+    const exactNoExt = scene.getObjectByName(withoutExt)
+    if (exactNoExt) return exactNoExt
+
+    const strictSet = new Set([toCanonical(name), toCanonical(withoutExt)])
+    let strictFound: Object3D | null = null
+    scene.traverse((obj) => {
+      if (strictFound || !obj.name) return
+      const direct = toCanonical(obj.name)
+      const directNoExt = toCanonical(obj.name.replace(/\.(obj|stl|mtl)$/i, ''))
+      if (strictSet.has(direct) || strictSet.has(directNoExt)) {
+        strictFound = obj
+      }
+    })
+    if (strictFound) return strictFound
+
+    const targetSet = new Set(buildNameVariants(name).map((candidate) => toCanonical(candidate)))
+    let found: Object3D | null = null
+    scene.traverse((obj) => {
+      if (found || !obj.name) return
+      const matches = buildNameVariants(obj.name).some((candidate) => targetSet.has(toCanonical(candidate)))
+      if (matches) {
+        found = obj
+      }
+    })
+    return found
+  }
+
+  const adjustedCurve = useMemo(() => {
+    if (!computedStart || !computedEnd) {
+      return null
     }
-    return [0, 0.45, 0] as [number, number, number]
-  }, [computedStart, computedEnd])
+
+    const center = anchorCenter
+      ? new Vector3(anchorCenter[0], anchorCenter[1], anchorCenter[2])
+      : new Vector3(0, 0, 0)
+
+    const startV = new Vector3(computedStart[0], computedStart[1], computedStart[2])
+    const endV = new Vector3(computedEnd[0], computedEnd[1], computedEnd[2])
+    const chordDistance = startV.distanceTo(endV)
+    if (chordDistance <= 0.0001) {
+      return null
+    }
+
+    if (startSurfaceOffset > 0) {
+      let dir = startV.clone().sub(center)
+      if (dir.lengthSq() <= 0.000001) {
+        dir = endV.clone().sub(center)
+      }
+      if (dir.lengthSq() > 0.000001) {
+        startV.add(dir.normalize().multiplyScalar(startSurfaceOffset))
+      }
+    }
+    if (endSurfaceOffset > 0) {
+      const dir = endV.clone().sub(center)
+      if (dir.lengthSq() > 0.000001) {
+        endV.add(dir.normalize().multiplyScalar(endSurfaceOffset))
+      }
+    }
+
+    const mid = startV.clone().add(endV).multiplyScalar(0.5)
+    const bulgeDir = mid.clone().sub(center)
+    const effectiveArc = Math.min(arcHeight, Math.max(0.12, chordDistance * 0.7))
+    if (bulgeDir.lengthSq() > 0.000001) {
+      mid.add(bulgeDir.normalize().multiplyScalar(effectiveArc))
+    } else {
+      mid.y += effectiveArc
+    }
+
+    return {
+      start: [startV.x, startV.y, startV.z] as [number, number, number],
+      end: [endV.x, endV.y, endV.z] as [number, number, number],
+      mid: [mid.x, mid.y, mid.z] as [number, number, number],
+    }
+  }, [computedStart, computedEnd, anchorCenter, startSurfaceOffset, endSurfaceOffset, arcHeight])
 
   function centerOf(obj: Object3D | null) {
     if (!obj) return new Vector3()
-    // Prefer an accurate world position. If the object has geometry positioned
-    // such that its local origin is meaningful, use getWorldPosition. Otherwise
-    // fall back to bounding-box center.
-    const worldPos = new Vector3()
+    // Imported meshes often keep origins away from anatomy; use bbox centers.
     try {
-      obj.getWorldPosition(worldPos)
-      return worldPos
-    } catch (e) {
       const box = new Box3().setFromObject(obj)
       const c = new Vector3()
       box.getCenter(c)
-      return c
+      if (Number.isFinite(c.x) && Number.isFinite(c.y) && Number.isFinite(c.z)) {
+        return c
+      }
+    } catch (e) {
+      // fallback below
     }
+    const worldPos = new Vector3()
+    obj.getWorldPosition(worldPos)
+    return worldPos
   }
 
   useEffect(() => {
     if (startName) {
-      const sObj = scene.getObjectByName(startName) as Object3D | undefined
+      const sObj = findObjectByNameFlexible(startName) as Object3D | undefined
       const c = centerOf(sObj ?? null)
       setComputedStart([c.x, c.y, c.z])
     } else if (start) {
@@ -72,7 +160,7 @@ export default function ConnectionLine({
     if (endName) {
       const names = Array.isArray(endName) ? endName : [endName]
       const centers = names
-        .map((n) => scene.getObjectByName(n))
+        .map((n) => findObjectByNameFlexible(n))
         .filter(Boolean)
         .map((o) => centerOf(o as Object3D))
 
@@ -95,13 +183,13 @@ export default function ConnectionLine({
   // Keep updating in case model moves
   useFrame(() => {
     if (startName) {
-      const sObj = scene.getObjectByName(startName) as Object3D | undefined
+      const sObj = findObjectByNameFlexible(startName) as Object3D | undefined
       const c = centerOf(sObj ?? null)
       setComputedStart([c.x, c.y, c.z])
     }
     if (endName) {
       const names = Array.isArray(endName) ? endName : [endName]
-      const centers = names.map((n) => scene.getObjectByName(n)).filter(Boolean).map((o) => centerOf(o as Object3D))
+      const centers = names.map((n) => findObjectByNameFlexible(n)).filter(Boolean).map((o) => centerOf(o as Object3D))
       if (centers.length === 1) {
         const c = centers[0]
         setComputedEnd([c.x, c.y, c.z])
@@ -113,17 +201,19 @@ export default function ConnectionLine({
     }
   })
 
-  if (!computedStart || !computedEnd) return null
+  if (!adjustedCurve) return null
 
   return (
     <QuadraticBezierLine
-      start={computedStart}
-      end={computedEnd}
-      mid={mid}
+      start={adjustedCurve.start}
+      end={adjustedCurve.end}
+      mid={adjustedCurve.mid}
       color={color}
-      lineWidth={isActive ? 3.4 : 2.2}
+      lineWidth={isActive ? 4.4 : 2.8}
       transparent={opacity < 1}
       opacity={opacity}
+      depthTest={false}
+      renderOrder={20}
       onClick={onClick}
       onPointerOver={() => {
         document.body.style.cursor = 'pointer'
