@@ -2,10 +2,16 @@ import { Component, Suspense, forwardRef, useEffect, useMemo, type ReactNode } f
 import { useLoader } from '@react-three/fiber'
 import type { ThreeEvent } from '@react-three/fiber'
 import type { ThreeElements } from '@react-three/fiber'
-import { Color, Mesh, MeshStandardMaterial, MeshPhysicalMaterial, type Material, type Object3D, type Plane } from 'three'
+import { Color, Mesh, MeshStandardMaterial, MeshPhysicalMaterial, type Material, type Object3D, type Plane, Box3, Sphere, Vector3 } from 'three'
 import { clone } from 'three/examples/jsm/utils/SkeletonUtils.js'
 import { GLTFLoader } from 'three/examples/jsm/loaders/GLTFLoader.js'
 import { DRACOLoader } from 'three/examples/jsm/loaders/DRACOLoader.js'
+
+type MeshClickInfo = {
+  name: string
+  center: [number, number, number]
+  radius: number
+}
 
 type ModelLoaderProps = ThreeElements['group'] & {
   url?: string
@@ -14,7 +20,7 @@ type ModelLoaderProps = ThreeElements['group'] & {
   highlightColor?: string
   clippingPlanes?: Plane[]
   xrayMode?: boolean
-  onMeshClick?: (name: string) => void
+  onMeshClick?: (info: MeshClickInfo) => void
   onClick?: (event: ThreeEvent<MouseEvent>) => void
 }
 
@@ -117,9 +123,23 @@ const ModelRoot = forwardRef<any, ModelRootProps>(function ModelRoot({
     e.stopPropagation()
     const obj = (e as any).object as Object3D | undefined
     if (!obj) return
-    // If a mesh, report its name (or parent name if anonymous)
-    const meshName = obj.name || (obj.parent && obj.parent.name) || ''
-    ;(groupProps as any).onMeshClick?.(meshName)
+
+    try {
+      obj.updateMatrixWorld(true)
+      const box = new Box3().setFromObject(obj)
+      const centerV = box.getCenter(new Vector3())
+      const sphere = box.getBoundingSphere(new Sphere())
+      const meshName = obj.name || (obj.parent && obj.parent.name) || ''
+
+      ;(groupProps as any).onMeshClick?.({
+        name: meshName,
+        center: [centerV.x, centerV.y, centerV.z],
+        radius: sphere.radius || 0.001,
+      })
+    } catch (err) {
+      const meshName = (e as any).object?.name || ''
+      ;(groupProps as any).onMeshClick?.({ name: meshName, center: [0, 0, 0], radius: 0.001 })
+    }
   }
 
   // Configure DRACO decoder and load via GLTFLoader so Draco-compressed files load correctly.
@@ -181,6 +201,14 @@ const ModelRoot = forwardRef<any, ModelRootProps>(function ModelRoot({
         })
       }
     })
+
+    // debug: report scene node count
+    try {
+      // eslint-disable-next-line no-console
+      console.info('[ModelLoader] clonedScene children:', clonedScene.children.length)
+    } catch (e) {
+      // ignore
+    }
 
     applyNodeHighlight(clonedScene, highlightedNodeNames, highlightColor)
 

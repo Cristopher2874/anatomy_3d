@@ -14,7 +14,7 @@ import {
   type OrbitControlsProps,
 } from '@react-three/drei'
 import { useFrame } from '@react-three/fiber'
-import { MOUSE, Vector3, Plane, Box3, Sphere, MathUtils } from 'three'
+import { MOUSE, Vector3, Plane, Box3, Sphere, MathUtils, Raycaster } from 'three'
 import type { OrbitControls as OrbitControlsImpl } from 'three-stdlib'
 import { easing } from 'maath'
 import ThalamusPlaceholder from './components/ThalamusPlaceholder'
@@ -40,7 +40,7 @@ type CameraGoal = {
 
 // Target placeholders removed in favour of dynamic geometry & pins.
 
-function buildFocusGoal(controls: OrbitControlsImpl, organPosition: Vec3): CameraGoal {
+function buildFocusGoal(controls: OrbitControlsImpl, organPosition: Vec3, pieceRadius?: number): CameraGoal {
   const target = controls.target.clone()
   const cameraPosition = controls.object.position.clone()
   const direction = cameraPosition.sub(target)
@@ -54,6 +54,19 @@ function buildFocusGoal(controls: OrbitControlsImpl, organPosition: Vec3): Camer
   }
 
   direction.normalize()
+
+  // If a piece radius is provided, compute a safe distance that frames the piece
+  if (pieceRadius && pieceRadius > 0.0001) {
+    const cameraObject = controls.object
+    const fovDeg = 'fov' in cameraObject ? (cameraObject.fov as number) : 48
+    const fovRad = MathUtils.degToRad(fovDeg)
+    const safeDistance = (pieceRadius / Math.sin(fovRad / 2)) * 2.2
+    const nextPosition = new Vector3(organPosition[0], organPosition[1], organPosition[2]).add(direction.multiplyScalar(safeDistance))
+    return {
+      target: organPosition,
+      position: [nextPosition.x, nextPosition.y, nextPosition.z],
+    }
+  }
 
   // Keep relative viewing direction to avoid sudden flips while approaching the selected organ.
   const desiredDistance = Math.min(4.2, Math.max(1.7, distance * 0.58))
@@ -101,6 +114,36 @@ function CameraAnimator({ controlsRef, goal, onSettled }: CameraAnimatorProps) {
       onSettled()
     }
   })
+
+  return null
+}
+
+function CanvasPointerManager({ onPointerMissed }: { onPointerMissed: () => void }) {
+  const { gl, camera, scene } = useThree()
+
+  useEffect(() => {
+    if (!gl || !camera) return
+
+    const rc = new Raycaster()
+
+    const handler = (ev: PointerEvent) => {
+      try {
+        const rect = gl.domElement.getBoundingClientRect()
+        const x = ((ev.clientX - rect.left) / rect.width) * 2 - 1
+        const y = -((ev.clientY - rect.top) / rect.height) * 2 + 1
+        rc.setFromCamera({ x, y } as any, camera)
+        const intersects = rc.intersectObjects(scene.children, true)
+        if (!intersects || intersects.length === 0) {
+          onPointerMissed()
+        }
+      } catch (e) {
+        // ignore
+      }
+    }
+
+    gl.domElement.addEventListener('pointerdown', handler)
+    return () => gl.domElement.removeEventListener('pointerdown', handler)
+  }, [gl, camera, scene, onPointerMissed])
 
   return null
 }
@@ -166,6 +209,9 @@ export default function Scene({ selectedConnection, onSelectConnection, viewSett
 
   // When model is available, update its world matrices and precompute pin world positions
   useEffect(() => {
+    // debug: indicate modelGroup change
+    // eslint-disable-next-line no-console
+    console.info('[Scene] modelGroup changed:', modelGroup)
     if (!modelGroup) return
     try {
       modelGroup.updateMatrixWorld(true)
@@ -365,23 +411,23 @@ export default function Scene({ selectedConnection, onSelectConnection, viewSett
         <ModelLoader
           url={THALAMUS_MODEL_URL}
           ref={setModelGroup}
-          onMeshClick={(name: string) => {
-            if (!name) return
+          onMeshClick={(info) => {
+            if (!info) return
             try {
               if (modelGroup && controlsRef.current) {
-                const obj = modelGroup.getObjectByName(name) || modelGroup.getObjectByProperty('name', name)
-                if (obj) {
-                  obj.updateMatrixWorld(true)
-                  const pos = new Vector3()
-                  obj.getWorldPosition(pos)
-                  setManualHighlighted([name])
-                  setCameraGoal(buildFocusGoal(controlsRef.current, [pos.x, pos.y, pos.z]))
-                  // Try to map mesh name to a connection and select it
-                  const conn = nodeNameToConnection.get((name || '').toLowerCase())
-                  if (conn) {
-                    const worldPos = pinsWorld[conn.id] as [number, number, number] | undefined
-                    handleSelectConnection(conn, worldPos ?? [pos.x, pos.y, pos.z])
-                  }
+                const name = info.name
+                setManualHighlighted(name ? [name] : null)
+                // info.center is in local model space; convert to world
+                const localCenter = new Vector3(info.center[0], info.center[1], info.center[2])
+                const worldCenter = localCenter.clone().applyMatrix4(modelGroup.matrixWorld)
+
+                setCameraGoal(buildFocusGoal(controlsRef.current, [worldCenter.x, worldCenter.y, worldCenter.z], info.radius))
+
+                // map mesh name to connection and select it if available
+                const conn = nodeNameToConnection.get((info.name || '').toLowerCase())
+                if (conn) {
+                  const worldPos = pinsWorld[conn.id]
+                  handleSelectConnection(conn, worldPos ?? [worldCenter.x, worldCenter.y, worldCenter.z])
                 }
               }
             } catch (err) {
@@ -477,6 +523,12 @@ export default function Scene({ selectedConnection, onSelectConnection, viewSett
             setCameraGoal(null)
           }}
         />
+        {/* DOM-based pointer handler: raycast on pointerdown to detect clicks in empty space */}
+        <CanvasPointerManager onPointerMissed={() => {
+          // eslint-disable-next-line no-console
+          console.info('[Scene] pointer missed (DOM raycast)')
+          onSelectConnection(null)
+        }} />
       </Canvas>
 
       <CameraControls
