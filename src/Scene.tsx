@@ -14,13 +14,13 @@ import {
   type OrbitControlsProps,
 } from '@react-three/drei'
 import { useFrame } from '@react-three/fiber'
-import { MOUSE, Vector3, Plane } from 'three'
+import { MOUSE, Vector3, Plane, Box3, Sphere, MathUtils } from 'three'
 import type { OrbitControls as OrbitControlsImpl } from 'three-stdlib'
 import { easing } from 'maath'
 import ThalamusPlaceholder from './components/ThalamusPlaceholder'
-import TargetOrganPlaceholder from './components/TargetOrganPlaceholder'
 import ConnectionLine from './components/ConnectionLine'
-import ModelLoader from './components/ModelLoader'
+import ModelLoader, { CONNECTION_NODE_MAP } from './components/ModelLoader'
+import Pin from './components/Pin'
 import CameraControls from './components/CameraControls'
 import connectionsData from '../data/connections.json'
 import type { ConnectionWithType, ConnectionsSchema, Vec3, ViewSettings } from './types/connections'
@@ -28,31 +28,17 @@ import './Scene.css'
 
 const connections = connectionsData as ConnectionsSchema
 
-// Cambia esta linea cuando llegue el archivo real del cliente.
-const THALAMUS_MODEL_URL = ''
+// Si aún no se ha subido `brain_final.glb`, usar el GLB existente en `public/models/brain.glb`
+const THALAMUS_MODEL_URL = '/models/brain.glb'
 
-const CONNECTION_NODE_MAP: Record<string, string> = {
-  'ef-corteza-prefrontal': 'ef-corteza-prefrontal',
-  'ef-corteza-motora': 'ef-corteza-motora',
-  'ef-corteza-somatosensorial': 'ef-corteza-somatosensorial',
-  'ef-corteza-visual': 'ef-corteza-visual',
-  'af-medula-espinal': 'af-medula-espinal',
-  'af-tronco-encefalico': 'af-tronco-encefalico',
-  'af-cerebelo': 'af-cerebelo',
-  'af-ganglios-basales': 'af-ganglios-basales',
-}
+// Mapping is provided by `ModelLoader.CONNECTION_NODE_MAP` for cortex node names.
 
 type CameraGoal = {
   target: Vec3
   position: Vec3
 }
 
-const HOME_TARGET: Vec3 = [0, 0, 0]
-const HOME_POSITION: Vec3 = [3, 2, 4]
-
-function addVec3(a: Vec3, b: Vec3): Vec3 {
-  return [a[0] + b[0], a[1] + b[1], a[2] + b[2]]
-}
+// Target placeholders removed in favour of dynamic geometry & pins.
 
 function buildFocusGoal(controls: OrbitControlsImpl, organPosition: Vec3): CameraGoal {
   const target = controls.target.clone()
@@ -82,7 +68,7 @@ function buildFocusGoal(controls: OrbitControlsImpl, organPosition: Vec3): Camer
 }
 
 function getNodeNameFromConnection(connectionId: string): string {
-  return CONNECTION_NODE_MAP[connectionId] ?? connectionId
+  return connectionId
 }
 
 type CameraAnimatorProps = {
@@ -123,20 +109,91 @@ type SceneProps = {
   selectedConnection: ConnectionWithType | null
   onSelectConnection: (connection: ConnectionWithType | null) => void
   viewSettings: ViewSettings
+  onModelBoundsComputed?: (bounds: { halfHeight: number; halfWidth: number }) => void
 }
 
 export default function Scene({ selectedConnection, onSelectConnection, viewSettings }: SceneProps) {
+  const { onModelBoundsComputed } = (arguments[0] as SceneProps)
   const controlsRef = useRef<OrbitControlsImpl | null>(null)
+  const [modelGroup, setModelGroup] = useState<any>(null)
+  const [controlsReady, setControlsReady] = useState(false)
   const [cameraGoal, setCameraGoal] = useState<CameraGoal | null>(null)
+  const [modelRadiusLocal, setModelRadiusLocal] = useState<number>(2.5)
   const [isAutoRotate, setIsAutoRotate] = useState(false)
   const [activeView, setActiveView] = useState<string | null>(null)
+  const HOME_VIEW_MULTIPLIER = 3.8
 
-  // Clipping plane: horizontal plane (normal pointing up) with offset from slider
-  const clippingPlane = useMemo(() => {
+  // Clipping planes: Y (horizontal/top-bottom) and X (left-right)
+  const clippingPlaneY = useMemo(() => {
     const plane = new Plane(new Vector3(0, 1, 0), 0)
     plane.constant = -viewSettings.clippingOffset
     return plane
   }, [viewSettings.clippingOffset])
+
+  const clippingPlaneX = useMemo(() => {
+    const plane = new Plane(new Vector3(1, 0, 0), 0)
+    plane.constant = -(viewSettings.clippingOffsetX ?? 0)
+    return plane
+  }, [viewSettings.clippingOffsetX])
+
+  // Compute model bounds once the model group is available and notify parent for slider range.
+  useEffect(() => {
+    if (!modelGroup) return
+
+    try {
+      const box = new Box3().setFromObject(modelGroup)
+      const size = box.getSize(new Vector3())
+      const sphere = box.getBoundingSphere(new Sphere())
+      // report half height and half width for clipping sliders
+      const halfHeight = Math.max(0.001, size.y * 0.58)
+      const halfWidth = Math.max(0.001, size.x * 0.5)
+      setModelRadiusLocal(Math.max(0.001, sphere.radius))
+      onModelBoundsComputed?.({ halfHeight, halfWidth })
+    } catch (err) {
+      // ignore
+    }
+  }, [modelGroup, onModelBoundsComputed])
+
+  // Set an initial camera position relative to the model bounds once both model and controls are ready.
+  const initialPositionSetRef = useRef(false)
+
+  function applyHomeView(multiplier = HOME_VIEW_MULTIPLIER) {
+    if (!controlsRef.current || !modelGroup) return
+
+    try {
+      const brainNode = modelGroup.getObjectByName('Brain_Model') ?? modelGroup
+      const box = new Box3().setFromObject(brainNode)
+      const center = box.getCenter(new Vector3())
+      const sphere = box.getBoundingSphere(new Sphere())
+
+      const cameraObject = controlsRef.current.object
+      const fovDeg = 'fov' in cameraObject ? (cameraObject.fov as number) : 48
+      const fovRad = MathUtils.degToRad(fovDeg)
+      const safeDistance = (sphere.radius / Math.sin(fovRad / 2)) * multiplier
+
+      const controls = controlsRef.current
+      controls.object.position.set(center.x, center.y, center.z + safeDistance)
+      controls.target.set(center.x, center.y, center.z)
+      controls.update()
+      controls.saveState()
+
+      setCameraGoal({
+        target: [center.x, center.y, center.z],
+        position: [center.x, center.y, center.z + safeDistance],
+      })
+    } catch (err) {
+      // ignore
+    }
+  }
+
+  useEffect(() => {
+    if (initialPositionSetRef.current) return
+    if (!modelGroup || !controlsReady || !controlsRef.current) return
+    if (selectedConnection) return
+
+    applyHomeView(HOME_VIEW_MULTIPLIER)
+    initialPositionSetRef.current = true
+  }, [modelGroup, controlsReady, selectedConnection])
 
   useEffect(() => {
     if (selectedConnection) {
@@ -144,27 +201,6 @@ export default function Scene({ selectedConnection, onSelectConnection, viewSett
     }
 
     setActiveView(null)
-
-    // When clearing selection, keep camera position but smoothly return target to center
-    if (!controlsRef.current) {
-      return
-    }
-
-    const controls = controlsRef.current
-    const currentTarget = controls.target.clone()
-    const cameraPosition = controls.object.position.clone()
-
-    // Calculate new position maintaining the same view direction from the new target
-    const direction = cameraPosition.sub(currentTarget).normalize()
-    const distance = cameraPosition.distanceTo(currentTarget)
-    const newPosition = new Vector3()
-      .copy(controls.target)
-      .add(direction.multiplyScalar(distance))
-
-    setCameraGoal({
-      target: HOME_TARGET,
-      position: [newPosition.x, newPosition.y, newPosition.z],
-    })
   }, [selectedConnection])
 
   const allConnections = [
@@ -202,10 +238,8 @@ export default function Scene({ selectedConnection, onSelectConnection, viewSett
   const handleGoHome = () => {
     onSelectConnection(null)
     setActiveView(null)
-    setCameraGoal({
-      target: HOME_TARGET,
-      position: HOME_POSITION,
-    })
+    setCameraGoal(null)
+    applyHomeView(HOME_VIEW_MULTIPLIER)
   }
 
   const handleStepZoom = (factor: number) => {
@@ -217,7 +251,11 @@ export default function Scene({ selectedConnection, onSelectConnection, viewSett
     const target = controls.target.clone()
     const direction = controls.object.position.clone().sub(target)
     const currentDistance = direction.length()
-    const nextDistance = Math.min(14, Math.max(1.25, currentDistance * factor))
+    const minDistance = Math.max(0.05, modelRadiusLocal * 0.1)
+    const maxDistance = Math.max(minDistance + 0.1, modelRadiusLocal * 7)
+
+    const unclamped = currentDistance * factor
+    const nextDistance = Math.max(minDistance, Math.min(maxDistance, unclamped))
 
     direction.normalize().multiplyScalar(nextDistance)
     const nextPosition = target.clone().add(direction)
@@ -232,8 +270,8 @@ export default function Scene({ selectedConnection, onSelectConnection, viewSett
 
   return (
     <div className="scene-shell">
-      <Canvas
-        camera={{ position: [3, 2, 4], fov: 60 }}
+        <Canvas
+          camera={{ position: [0, 2, 10], fov: 48, near: 0.1, far: 1000 }}
         onPointerMissed={() => onSelectConnection(null)}
         gl={{ localClippingEnabled: true }}
       >
@@ -272,16 +310,19 @@ export default function Scene({ selectedConnection, onSelectConnection, viewSett
 
         <ModelLoader
           url={THALAMUS_MODEL_URL}
+          ref={setModelGroup}
           position={connections.nodoCentral.posicion}
           scale={0.95}
-          highlightedNodeName={selectedConnection ? getNodeNameFromConnection(selectedConnection.id) : null}
+          highlightedNodeNames={
+            selectedConnection ? CONNECTION_NODE_MAP[selectedConnection.id] ?? [getNodeNameFromConnection(selectedConnection.id)] : null
+          }
           highlightColor="#FB923C"
-          clippingPlane={clippingPlane}
+          clippingPlanes={[clippingPlaneY, clippingPlaneX]}
           xrayMode={viewSettings.xrayMode}
           fallback={
             <ThalamusPlaceholder
               position={connections.nodoCentral.posicion}
-              clippingPlane={clippingPlane}
+              clippingPlanes={[clippingPlaneY, clippingPlaneX]}
               xrayMode={viewSettings.xrayMode}
               showLabel={viewSettings.layers.showLabels}
             />
@@ -289,40 +330,35 @@ export default function Scene({ selectedConnection, onSelectConnection, viewSett
         />
 
         {allConnections.map((connection) => {
-          const startPoint = addVec3(connections.nodoCentral.posicion, connection.posicionLocal)
           const isActive = selectedConnection?.id === connection.id
-          const organPosition = connection.posicionDestino
           const opacity = activeView && !isActive ? dimOpacity : 1
+
+          // For eferencias, try to use mapped cortex node names if available
+          const mapped = connection.tipo === 'eferencia' ? (connection as any).mappedNodes as string[] | undefined : undefined
 
           return (
             <group key={connection.id}>
-              {viewSettings.layers.showTargetOrgans && (
-                <TargetOrganPlaceholder
-                  position={organPosition}
-                  color={connection.tipo === 'eferencia' ? '#FB923C' : '#93C5FD'}
-                  isActive={isActive}
-                  opacity={opacity}
-                  clippingPlane={clippingPlane}
-                  xrayMode={viewSettings.xrayMode}
-                  showLabel={viewSettings.layers.showLabels}
+              {connection.pin && viewSettings.layers.showTargetOrgans && (
+                <Pin
+                  position={connection.posicionDestino}
                   label={connection.nombre}
-                  onClick={(event) => {
-                    event.stopPropagation()
-                    handleSelectConnection(connection, organPosition)
+                  image={(connection as any).pinImage}
+                  onClick={() => {
+                    handleSelectConnection(connection, connection.posicionDestino)
                   }}
                 />
               )}
 
-              {viewSettings.layers.showNerves && (
+              {viewSettings.layers.showNerves && connection.tipo === 'eferencia' && (
                 <ConnectionLine
-                  start={startPoint}
-                  end={organPosition}
+                  startName={connections.nodoCentral.id}
+                  endName={mapped ?? CONNECTION_NODE_MAP[connection.id] ?? [getNodeNameFromConnection(connection.id)]}
                   color={connection.colorLinea}
                   isActive={isActive}
                   opacity={opacity}
                   onClick={(event) => {
                     event.stopPropagation()
-                    handleSelectConnection(connection, organPosition)
+                    handleSelectConnection(connection, connection.posicionDestino)
                   }}
                 />
               )}
@@ -331,8 +367,13 @@ export default function Scene({ selectedConnection, onSelectConnection, viewSett
         })}
 
         <OrbitControls
-          ref={controlsRef}
+          ref={(instance) => {
+            controlsRef.current = instance
+            setControlsReady(Boolean(instance))
+          }}
           {...orbitControlsProps}
+          minDistance={Math.max(0.05, modelRadiusLocal * 0.5)}
+          maxDistance={Math.max(Math.max(0.05, modelRadiusLocal * 0.5) + 0.1, modelRadiusLocal * 5)}
           onStart={() => {
             setCameraGoal(null)
           }}

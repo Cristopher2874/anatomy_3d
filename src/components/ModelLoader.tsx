@@ -1,16 +1,18 @@
-import { Component, Suspense, useEffect, useMemo, type ReactNode } from 'react'
-import { useGLTF } from '@react-three/drei'
+import { Component, Suspense, forwardRef, useEffect, useMemo, type ReactNode } from 'react'
+import { useLoader } from '@react-three/fiber'
 import type { ThreeEvent } from '@react-three/fiber'
 import type { ThreeElements } from '@react-three/fiber'
 import { Color, Mesh, MeshStandardMaterial, MeshPhysicalMaterial, type Material, type Object3D, type Plane } from 'three'
 import { clone } from 'three/examples/jsm/utils/SkeletonUtils.js'
+import { GLTFLoader } from 'three/examples/jsm/loaders/GLTFLoader.js'
+import { DRACOLoader } from 'three/examples/jsm/loaders/DRACOLoader.js'
 
 type ModelLoaderProps = ThreeElements['group'] & {
   url?: string
   fallback: ReactNode
-  highlightedNodeName?: string | null
+  highlightedNodeNames?: string[] | null
   highlightColor?: string
-  clippingPlane?: Plane
+  clippingPlanes?: Plane[]
   xrayMode?: boolean
   onClick?: (event: ThreeEvent<MouseEvent>) => void
 }
@@ -35,7 +37,7 @@ class ModelLoadBoundary extends Component<{ fallback: ReactNode; children: React
 }
 
 function setMaterialHighlight(material: Material, isHighlighted: boolean, highlightColor: string) {
-  if (!(material instanceof MeshStandardMaterial)) {
+  if (!(material instanceof MeshStandardMaterial || material instanceof MeshPhysicalMaterial)) {
     return
   }
 
@@ -43,31 +45,37 @@ function setMaterialHighlight(material: Material, isHighlighted: boolean, highli
   const originalIntensity = material.userData.__originalEmissiveIntensity as number | undefined
 
   if (originalColorHex === undefined) {
-    material.userData.__originalEmissiveHex = material.emissive.getHex()
-    material.userData.__originalEmissiveIntensity = material.emissiveIntensity
+    if ((material as any).emissive?.getHex) {
+      material.userData.__originalEmissiveHex = (material as any).emissive.getHex()
+    } else {
+      material.userData.__originalEmissiveHex = 0x000000
+    }
+    material.userData.__originalEmissiveIntensity = (material as any).emissiveIntensity ?? 0
   }
 
   if (isHighlighted) {
-    material.emissive = new Color(highlightColor)
-    material.emissiveIntensity = 0.72
+    ;(material as any).emissive = new Color(highlightColor)
+    ;(material as any).emissiveIntensity = 0.72
     return
   }
 
-  material.emissive = new Color(originalColorHex ?? 0x000000)
-  material.emissiveIntensity = originalIntensity ?? 0
+  ;(material as any).emissive = new Color(originalColorHex ?? 0x000000)
+  ;(material as any).emissiveIntensity = originalIntensity ?? 0
 }
 
 function applyNodeHighlight(
   root: Object3D,
-  highlightedNodeName: string | null | undefined,
+  highlightedNodeNames: string[] | null | undefined,
   highlightColor: string,
 ) {
+  const set = new Set((highlightedNodeNames || []).filter(Boolean))
+
   root.traverse((obj) => {
     if (!(obj instanceof Mesh)) {
       return
     }
 
-    const isHighlighted = highlightedNodeName ? obj.name === highlightedNodeName : false
+    const isHighlighted = set.size > 0 ? set.has(obj.name) : false
 
     if (Array.isArray(obj.material)) {
       obj.material.forEach((mat) => setMaterialHighlight(mat, isHighlighted, highlightColor))
@@ -78,20 +86,81 @@ function applyNodeHighlight(
   })
 }
 
-function ModelRoot({
+// Mapping from connection IDs to cortex node names inside the combined model.
+export const CONNECTION_NODE_MAP: Record<string, string[]> = {
+  'ef-corteza-prefrontal': ['isthmuscingulate', 'rostralanteriorcingulate'],
+  'ef-corteza-motora': ['precentral'],
+  'ef-corteza-somatosensorial': ['postcentral'],
+  'ef-corteza-visual': ['pericalcarine', 'lateraloccipital'],
+  // Additional mappings for clinical table
+  'ef-dorsomedial': ['superiorfrontal', 'rostralmiddlefrontal', 'medialorbitofrontal'],
+  'ef-dorsallateral-pulvinar': ['superiorparietal', 'inferiorparietal'],
+  'ef-geniculado-medial': ['superiortemporal'],
+}
+
+const ModelRoot = forwardRef<any, ModelRootProps>(function ModelRoot({
   url,
-  highlightedNodeName,
+  highlightedNodeNames,
   highlightColor = '#ff5a5f',
-  clippingPlane,
+  clippingPlanes,
   xrayMode = false,
   onClick,
   ...groupProps
-}: ModelRootProps) {
-  const { scene } = useGLTF(url)
+}: ModelRootProps, ref) {
+  // Configure DRACO decoder and load via GLTFLoader so Draco-compressed files load correctly.
+  const gltf = useLoader(GLTFLoader, url, (loader) => {
+    const draco = new DRACOLoader()
+    draco.setDecoderPath('https://www.gstatic.com/draco/v1/decoders/')
+    loader.setDRACOLoader(draco)
+  })
+
+  const scene = gltf.scene
   const clonedScene = useMemo(() => clone(scene), [scene])
 
   useEffect(() => {
-    applyNodeHighlight(clonedScene, highlightedNodeName, highlightColor)
+    // First apply hierarchical material injection: try to detect 'corteza' (cortex) and 'tálamo' (thalamus)
+    clonedScene.traverse((obj) => {
+      if (!(obj instanceof Mesh)) return
+
+      const rawName = obj.name || ''
+      const lname = rawName.toLowerCase().normalize('NFD').replace(/[\u0300-\u036f]/g, '')
+      const isCortex = lname.includes('corteza') || lname.includes('cortex') || lname.includes('cortical')
+      const isThalamus = lname.includes('talamo') || lname.includes('thalamus') || lname.includes('talamus')
+
+      if (isCortex) {
+        // Preserve original material reference for potential restoration/highlight
+        if (!obj.userData.__originalMaterial) obj.userData.__originalMaterial = obj.material
+
+        const baseMat = Array.isArray(obj.material) ? obj.material[0] : obj.material
+        const baseColor = baseMat && (baseMat as any).color ? (baseMat as any).color.getHex() : 0xffffff
+
+        const phys = new MeshPhysicalMaterial({
+          color: baseColor,
+          transmission: 0.6,
+          transparent: true,
+          opacity: 0.72,
+          roughness: 0.25,
+          metalness: 0,
+          clearcoat: 0.05,
+        })
+
+        obj.material = phys
+        return
+      }
+
+      if (isThalamus) {
+        const mats = Array.isArray(obj.material) ? obj.material : [obj.material]
+        mats.forEach((mat) => {
+          if (mat instanceof MeshPhysicalMaterial || mat instanceof MeshStandardMaterial) {
+            mat.transparent = false
+            mat.opacity = 1
+            mat.wireframe = false
+          }
+        })
+      }
+    })
+
+    applyNodeHighlight(clonedScene, highlightedNodeNames, highlightColor)
 
     // Apply clipping plane and xray settings to all materials
     clonedScene.traverse((obj) => {
@@ -102,8 +171,8 @@ function ModelRoot({
       const materials = Array.isArray(obj.material) ? obj.material : [obj.material]
       materials.forEach((mat) => {
         if (mat instanceof MeshStandardMaterial || mat instanceof MeshPhysicalMaterial) {
-          if (clippingPlane) {
-            mat.clippingPlanes = [clippingPlane]
+          if (clippingPlanes && clippingPlanes.length > 0) {
+            mat.clippingPlanes = clippingPlanes
           }
           if (xrayMode) {
             mat.transparent = true
@@ -113,16 +182,16 @@ function ModelRoot({
         }
       })
     })
-  }, [clonedScene, highlightedNodeName, highlightColor, clippingPlane, xrayMode])
+  }, [clonedScene, highlightedNodeNames, highlightColor, clippingPlanes, xrayMode])
 
   return (
-    <group {...groupProps} onClick={onClick}>
+    <group ref={ref} {...groupProps} onClick={onClick}>
       <primitive object={clonedScene} />
     </group>
   )
-}
+})
 
-export default function ModelLoader({ url, fallback, ...props }: ModelLoaderProps) {
+const ModelLoader = forwardRef<any, ModelLoaderProps>(function ModelLoader({ url, fallback, ...props }, ref) {
   if (!url || url.trim().length === 0) {
     return <>{fallback}</>
   }
@@ -130,8 +199,10 @@ export default function ModelLoader({ url, fallback, ...props }: ModelLoaderProp
   return (
     <ModelLoadBoundary fallback={fallback}>
       <Suspense fallback={fallback}>
-        <ModelRoot url={url} {...props} />
+        <ModelRoot ref={ref} url={url} {...props} />
       </Suspense>
     </ModelLoadBoundary>
   )
-}
+})
+
+export default ModelLoader

@@ -7,6 +7,9 @@ export type Connection = {
   posicionDestino: Vec3
   colorLinea: string
   infoText: string
+  mappedNodes?: string[]
+  pin?: boolean
+  pinImage?: string
 }
 
 export type ConnectionWithType = Connection & {
@@ -34,5 +37,6 @@ export type VisibilityLayers = {
 export type ViewSettings = {
   layers: VisibilityLayers
   clippingOffset: number
+  clippingOffsetX?: number
   xrayMode: boolean
 }

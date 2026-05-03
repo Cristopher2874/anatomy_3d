@@ -4,8 +4,11 @@ import type { ConnectionWithType, ViewSettings, VisibilityLayers } from '../type
 type SidebarProps = {
   selectedConnection: ConnectionWithType | null
   viewSettings: ViewSettings
+  clippingRange?: { min: number; max: number }
+  clippingRangeX?: { min: number; max: number }
   onToggleLayer: (layerKey: keyof VisibilityLayers) => void
   onChangeClipping: (nextOffset: number) => void
+  onChangeClippingX?: (nextOffset: number) => void
   onToggleXray: () => void
   onClearSelection: () => void
 }
@@ -13,8 +16,11 @@ type SidebarProps = {
 export default function Sidebar({
   selectedConnection,
   viewSettings,
+  clippingRange,
+  clippingRangeX,
   onToggleLayer,
   onChangeClipping,
+  onChangeClippingX,
   onToggleXray,
   onClearSelection,
 }: SidebarProps) {
@@ -88,18 +94,37 @@ export default function Sidebar({
 
       <section className="tools-card" aria-label="Herramientas avanzadas">
         <h3>Plano de Corte</h3>
-        <input
-          className="clip-slider"
-          type="range"
-          min={-3}
-          max={2}
-          step={0.01}
-          value={viewSettings.clippingOffset}
-          onChange={(event) => {
-            onChangeClipping(Number(event.target.value))
-          }}
-        />
-        <p className="tool-caption">Desplazamiento: {viewSettings.clippingOffset.toFixed(2)}</p>
+        <div style={{ marginBottom: 8 }}>
+          <label style={{ display: 'block', fontSize: 12, marginBottom: 4 }}>Corte superior-inferior</label>
+          <input
+            className="clip-slider"
+            type="range"
+            min={clippingRange ? clippingRange.min : -3}
+            max={clippingRange ? clippingRange.max : 2}
+            step={0.01}
+            value={Math.max(clippingRange ? clippingRange.min : -3, Math.min(clippingRange ? clippingRange.max : 2, viewSettings.clippingOffset))}
+            onChange={(event) => {
+              onChangeClipping(Number(event.target.value))
+            }}
+          />
+          <p className="tool-caption">Desplazamiento: {viewSettings.clippingOffset.toFixed(2)}</p>
+        </div>
+
+        <div>
+          <label style={{ display: 'block', fontSize: 12, marginBottom: 4 }}>Corte izquierda-derecha</label>
+          <input
+            className="clip-slider"
+            type="range"
+            min={clippingRangeX ? clippingRangeX.min : -3}
+            max={clippingRangeX ? clippingRangeX.max : 2}
+            step={0.01}
+            value={Math.max(clippingRangeX ? clippingRangeX.min : -3, Math.min(clippingRangeX ? clippingRangeX.max : 2, viewSettings.clippingOffsetX ?? 0))}
+            onChange={(event) => {
+              onChangeClippingX?.(Number(event.target.value))
+            }}
+          />
+          <p className="tool-caption">Desplazamiento X: {(viewSettings.clippingOffsetX ?? 0).toFixed(2)}</p>
+        </div>
 
         <button
           type="button"

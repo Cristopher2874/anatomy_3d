@@ -11,6 +11,7 @@
       "nombre": "Corteza Prefrontal",
       "posicionLocal": [0.18, 0.12, 0.22],
       "posicionDestino": [2.2, 1.1, 1.6],
+      "mappedNodes": ["isthmuscingulate", "rostralanteriorcingulate"],
       "colorLinea": "#e63946",
       "infoText": "Las proyecciones talamocorticales hacia la corteza prefrontal participan en funciones ejecutivas, memoria de trabajo y regulación cognitiva."
     },
@@ -19,6 +20,7 @@
       "nombre": "Corteza Motora Primaria",
       "posicionLocal": [0.24, 0.05, 0.14],
       "posicionDestino": [2.5, 0.7, 0.8],
+      "mappedNodes": ["precentral"],
       "colorLinea": "#e63946",
       "infoText": "Las eferencias del tálamo hacia corteza motora contribuyen al inicio y modulación fina del movimiento voluntario."
     },
@@ -27,6 +29,7 @@
       "nombre": "Corteza Somatosensorial",
       "posicionLocal": [0.21, 0.02, 0.08],
       "posicionDestino": [2.4, 0.4, 0.3],
+      "mappedNodes": ["postcentral"],
       "colorLinea": "#e63946",
       "infoText": "La vía talamocortical somatosensorial transmite información táctil y propioceptiva para la percepción consciente corporal."
     },
@@ -35,6 +38,7 @@
       "nombre": "Corteza Visual",
       "posicionLocal": [0.1, -0.02, -0.15],
       "posicionDestino": [1.9, 0.3, -2.4],
+      "mappedNodes": ["pericalcarine", "lateraloccipital"],
       "colorLinea": "#e63946",
       "infoText": "A través del cuerpo geniculado lateral, el tálamo proyecta señales visuales hacia corteza occipital para el procesamiento de la visión."
     }
@@ -55,6 +59,36 @@
       "posicionDestino": [-1.7, -1.5, -0.4],
       "colorLinea": "#457b9d",
       "infoText": "El tronco encefálico envía aferencias sensoriales y moduladoras al tálamo, integrando estado de alerta y señales somáticas."
+    },
+    {
+      "id": "af-via-gustativa",
+      "nombre": "Vía Gustativa",
+      "posicionLocal": [-0.18, -0.12, -0.06],
+      "posicionDestino": [-1.6, -1.4, -0.3],
+      "colorLinea": "#6a994e",
+      "infoText": "Vía gustativa (no presente como malla 3D) representada como pin con contenido 2D.",
+      "pin": true,
+      "pinImage": "/placeholders/gustatory.png"
+    },
+    {
+      "id": "af-oido-interno",
+      "nombre": "Oído Interno",
+      "posicionLocal": [-0.2, -0.14, -0.12],
+      "posicionDestino": [-1.8, -1.6, -0.5],
+      "colorLinea": "#6a994e",
+      "infoText": "Oído interno (no presente como malla 3D) — se abre una vista 2D con imágenes anatómicas.",
+      "pin": true,
+      "pinImage": "/placeholders/inner_ear.png"
+    },
+    {
+      "id": "af-globo-ocular",
+      "nombre": "Globo Ocular",
+      "posicionLocal": [-0.22, -0.13, 0.02],
+      "posicionDestino": [-1.7, -1.3, 0.8],
+      "colorLinea": "#6a994e",
+      "infoText": "Globo ocular (no presente como malla 3D) — pin con imagen 2D.",
+      "pin": true,
+      "pinImage": "/placeholders/eyeball.png"
     },
     {
       "id": "af-cerebelo",

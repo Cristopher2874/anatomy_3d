@@ -17,8 +17,12 @@ function App() {
       showLabels: true,
     },
     clippingOffset: 0,
+    clippingOffsetX: 0,
     xrayMode: false,
   })
+  const [modelHalfHeight, setModelHalfHeight] = useState<number>(2.5)
+  const [modelHalfWidth, setModelHalfWidth] = useState<number>(2.5)
+  const [boundsInitialized, setBoundsInitialized] = useState(false)
 
   return (
     <div className="app-layout">
@@ -33,6 +37,8 @@ function App() {
           <Sidebar
             selectedConnection={selectedConnection}
             viewSettings={viewSettings}
+            clippingRange={{ min: -modelHalfHeight, max: modelHalfHeight }}
+            clippingRangeX={{ min: -modelHalfWidth, max: modelHalfWidth }}
             onToggleLayer={(layerKey) => {
               setViewSettings((current) => ({
                 ...current,
@@ -46,6 +52,12 @@ function App() {
               setViewSettings((current) => ({
                 ...current,
                 clippingOffset: nextOffset,
+              }))
+            }}
+            onChangeClippingX={(nextOffset) => {
+              setViewSettings((current) => ({
+                ...current,
+                clippingOffsetX: nextOffset,
               }))
             }}
             onToggleXray={() => {
@@ -65,6 +77,19 @@ function App() {
             selectedConnection={selectedConnection}
             onSelectConnection={setSelectedConnection}
             viewSettings={viewSettings}
+            onModelBoundsComputed={(bounds: { halfHeight: number; halfWidth: number }) => {
+              setModelHalfHeight(bounds.halfHeight)
+              setModelHalfWidth(bounds.halfWidth)
+              // Initialize clipping offsets to show more than half of the model on first mount
+              if (!boundsInitialized) {
+                setBoundsInitialized(true)
+                setViewSettings((current) => ({
+                  ...current,
+                  clippingOffset: Math.max(-bounds.halfHeight * 0.25, -bounds.halfHeight),
+                  clippingOffsetX: Math.max(-bounds.halfWidth * 0.25, -bounds.halfWidth),
+                }))
+              }
+            }}
           />
         </section>
       </main>

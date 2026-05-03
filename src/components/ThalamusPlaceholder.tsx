@@ -3,14 +3,14 @@ import type { Plane } from 'three'
 
 type ThalamusPlaceholderProps = {
   position?: [number, number, number]
-  clippingPlane?: Plane
+  clippingPlanes?: Plane[]
   xrayMode?: boolean
   showLabel?: boolean
 }
 
 export default function ThalamusPlaceholder({
   position = [0, 0, 0],
-  clippingPlane,
+  clippingPlanes,
   xrayMode = false,
   showLabel = false,
 }: ThalamusPlaceholderProps) {
@@ -27,7 +27,7 @@ export default function ThalamusPlaceholder({
           transparent={xrayMode}
           opacity={xrayMode ? 0.42 : 1}
           wireframe={xrayMode}
-          clippingPlanes={clippingPlane ? [clippingPlane] : []}
+          clippingPlanes={clippingPlanes && clippingPlanes.length > 0 ? clippingPlanes : []}
         />
       </mesh>
       {showLabel && (
