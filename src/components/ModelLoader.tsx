@@ -118,14 +118,15 @@ const ModelRoot = forwardRef<any, ModelRootProps>(function ModelRoot({
   onClick,
   ...groupProps
 }: ModelRootProps, ref) {
-  // Attach a pointer handler that reports the mesh name when clicked.
-  const handlePointerDown = (e: ThreeEvent<PointerEvent>) => {
+  // Report exact clicked sub-mesh bounds so camera can focus each piece.
+  const handleModelClick = (e: ThreeEvent<MouseEvent>) => {
     e.stopPropagation()
     const obj = (e as any).object as Object3D | undefined
     if (!obj) return
 
     try {
       obj.updateMatrixWorld(true)
+      // Compute center/radius from the selected piece only (not full model).
       const box = new Box3().setFromObject(obj)
       const centerV = box.getCenter(new Vector3())
       const sphere = box.getBoundingSphere(new Sphere())
@@ -140,6 +141,8 @@ const ModelRoot = forwardRef<any, ModelRootProps>(function ModelRoot({
       const meshName = (e as any).object?.name || ''
       ;(groupProps as any).onMeshClick?.({ name: meshName, center: [0, 0, 0], radius: 0.001 })
     }
+
+    onClick?.(e)
   }
 
   // Configure DRACO decoder and load via GLTFLoader so Draco-compressed files load correctly.
@@ -225,17 +228,28 @@ const ModelRoot = forwardRef<any, ModelRootProps>(function ModelRoot({
         if (clippingPlanes && clippingPlanes.length > 0) {
           mat.clippingPlanes = clippingPlanes
         }
+
+        if (mat.userData.__xrayOriginalTransparent === undefined) {
+          mat.userData.__xrayOriginalTransparent = mat.transparent
+          mat.userData.__xrayOriginalOpacity = mat.opacity
+          mat.userData.__xrayOriginalWireframe = mat.wireframe
+        }
+
         if (xrayMode) {
           mat.transparent = true
           mat.opacity = Math.min(mat.opacity || 1, 0.45)
           mat.wireframe = true
+        } else {
+          mat.transparent = Boolean(mat.userData.__xrayOriginalTransparent)
+          mat.opacity = typeof mat.userData.__xrayOriginalOpacity === 'number' ? mat.userData.__xrayOriginalOpacity : 1
+          mat.wireframe = Boolean(mat.userData.__xrayOriginalWireframe)
         }
       })
     })
   }, [clonedScene, highlightedNodeNames, highlightColor, clippingPlanes, xrayMode])
 
   return (
-    <group ref={ref} {...groupProps} onClick={onClick} onPointerDown={handlePointerDown}>
+    <group ref={ref} {...groupProps} onClick={handleModelClick}>
       <primitive object={clonedScene} />
     </group>
   )

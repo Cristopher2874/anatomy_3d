@@ -60,8 +60,14 @@ function buildFocusGoal(controls: OrbitControlsImpl, organPosition: Vec3, pieceR
     const cameraObject = controls.object
     const fovDeg = 'fov' in cameraObject ? (cameraObject.fov as number) : 48
     const fovRad = MathUtils.degToRad(fovDeg)
-    const safeDistance = (pieceRadius / Math.sin(fovRad / 2)) * 2.2
-    const nextPosition = new Vector3(organPosition[0], organPosition[1], organPosition[2]).add(direction.multiplyScalar(safeDistance))
+    const safeDistance = (pieceRadius / Math.sin(fovRad / 2)) * 1.75
+    const nextTarget = new Vector3(organPosition[0], organPosition[1], organPosition[2])
+    const targetShift = target.distanceTo(nextTarget)
+    // Preserve zoom context when selecting neighboring pieces to avoid sudden zoom-out.
+    const nearbySelectionThreshold = Math.max(0.45, pieceRadius * 4)
+    const shouldPreserveLocalZoom = targetShift <= nearbySelectionThreshold
+    const nextDistance = shouldPreserveLocalZoom ? Math.min(distance, safeDistance) : safeDistance
+    const nextPosition = nextTarget.clone().add(direction.multiplyScalar(nextDistance))
     return {
       target: organPosition,
       position: [nextPosition.x, nextPosition.y, nextPosition.z],
@@ -167,6 +173,7 @@ export default function Scene({ selectedConnection, onSelectConnection, viewSett
   const HOME_VIEW_MULTIPLIER = 3.8
   const [manualHighlighted, setManualHighlighted] = useState<string[] | null>(null)
   const [pinsWorld, setPinsWorld] = useState<Record<string, [number, number, number]>>({})
+  const MIN_CAMERA_DISTANCE = 0.01
 
   // Clipping planes: Y (horizontal/top-bottom) and X (left-right)
   const clippingPlaneY = useMemo(() => {
@@ -305,10 +312,11 @@ export default function Scene({ selectedConnection, onSelectConnection, viewSett
     }
 
     setActiveView(null)
+    setManualHighlighted(null)
   }, [selectedConnection])
 
 
-  const handleSelectConnection = (connection: ConnectionWithType, organPosition: Vec3) => {
+  const handleSelectConnection = (connection: ConnectionWithType, organPosition: Vec3, pieceRadius?: number) => {
     onSelectConnection(connection)
     setActiveView(connection.id)
 
@@ -316,7 +324,7 @@ export default function Scene({ selectedConnection, onSelectConnection, viewSett
       return
     }
 
-    setCameraGoal(buildFocusGoal(controlsRef.current, organPosition))
+    setCameraGoal(buildFocusGoal(controlsRef.current, organPosition, pieceRadius))
   }
 
   const orbitControlsProps: OrbitControlsProps = {
@@ -351,7 +359,7 @@ export default function Scene({ selectedConnection, onSelectConnection, viewSett
     const target = controls.target.clone()
     const direction = controls.object.position.clone().sub(target)
     const currentDistance = direction.length()
-    const minDistance = Math.max(0.05, modelRadiusLocal * 0.1)
+    const minDistance = MIN_CAMERA_DISTANCE
     const maxDistance = Math.max(minDistance + 0.1, modelRadiusLocal * 7)
 
     const unclamped = currentDistance * factor
@@ -366,13 +374,19 @@ export default function Scene({ selectedConnection, onSelectConnection, viewSett
     })
   }
 
+  const clearSelection = () => {
+    onSelectConnection(null)
+    setActiveView(null)
+    setManualHighlighted(null)
+  }
+
   const dimOpacity = activeView ? 0.1 : 1
 
   return (
     <div className="scene-shell">
         <Canvas
           camera={{ position: [0, 2, 10], fov: 48, near: 0.1, far: 1000 }}
-        onPointerMissed={() => onSelectConnection(null)}
+        onPointerMissed={clearSelection}
         gl={{ localClippingEnabled: true }}
       >
         <color attach="background" args={['#f1f3f6']} />
@@ -414,20 +428,20 @@ export default function Scene({ selectedConnection, onSelectConnection, viewSett
           onMeshClick={(info) => {
             if (!info) return
             try {
-              if (modelGroup && controlsRef.current) {
+              if (controlsRef.current) {
                 const name = info.name
                 setManualHighlighted(name ? [name] : null)
-                // info.center is in local model space; convert to world
-                const localCenter = new Vector3(info.center[0], info.center[1], info.center[2])
-                const worldCenter = localCenter.clone().applyMatrix4(modelGroup.matrixWorld)
-
-                setCameraGoal(buildFocusGoal(controlsRef.current, [worldCenter.x, worldCenter.y, worldCenter.z], info.radius))
+                // `ModelLoader` returns piece center in world space.
+                const pieceCenter: Vec3 = [info.center[0], info.center[1], info.center[2]]
 
                 // map mesh name to connection and select it if available
                 const conn = nodeNameToConnection.get((info.name || '').toLowerCase())
                 if (conn) {
-                  const worldPos = pinsWorld[conn.id]
-                  handleSelectConnection(conn, worldPos ?? [worldCenter.x, worldCenter.y, worldCenter.z])
+                  handleSelectConnection(conn, pieceCenter, info.radius)
+                } else {
+                  setActiveView(null)
+                  onSelectConnection(null)
+                  setCameraGoal(buildFocusGoal(controlsRef.current, pieceCenter, info.radius))
                 }
               }
             } catch (err) {
@@ -510,7 +524,7 @@ export default function Scene({ selectedConnection, onSelectConnection, viewSett
             setControlsReady(Boolean(instance))
           }}
           {...orbitControlsProps}
-          minDistance={Math.max(0.05, modelRadiusLocal * 0.5)}
+          minDistance={MIN_CAMERA_DISTANCE}
           maxDistance={Math.max(Math.max(0.05, modelRadiusLocal * 0.5) + 0.1, modelRadiusLocal * 5)}
           onStart={() => {
             setCameraGoal(null)
@@ -527,7 +541,7 @@ export default function Scene({ selectedConnection, onSelectConnection, viewSett
         <CanvasPointerManager onPointerMissed={() => {
           // eslint-disable-next-line no-console
           console.info('[Scene] pointer missed (DOM raycast)')
-          onSelectConnection(null)
+          clearSelection()
         }} />
       </Canvas>
 
