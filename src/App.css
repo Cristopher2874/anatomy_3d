@@ -193,6 +193,31 @@
   color: #475569;
 }
 
+.sidebar .tier-badge {
+  display: inline-flex;
+  align-items: center;
+  margin: 0.12rem 0 0.35rem;
+  font-size: 0.78rem;
+  font-weight: 700;
+  border-radius: 999px;
+  padding: 0.2rem 0.58rem;
+}
+
+.sidebar .tier-badge.tier-eferente {
+  background: rgba(239, 68, 68, 0.16);
+  color: #b91c1c;
+}
+
+.sidebar .tier-badge.tier-aferente {
+  background: rgba(37, 99, 235, 0.14);
+  color: #1d4ed8;
+}
+
+.sidebar .tier-badge.tier-no-mapeada {
+  background: rgba(250, 204, 21, 0.22);
+  color: #a16207;
+}
+
 .sidebar .microcopy {
   font-size: 0.95rem;
   color: #334155;

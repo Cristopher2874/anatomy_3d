@@ -4,12 +4,8 @@ import Header from './components/Header'
 import Sidebar from './components/Sidebar'
 import Scene from './Scene'
 import type { ConnectionWithType, ViewSettings } from './types/connections'
+import type { SelectedPieceInfo } from './types/pieceInfo'
 import './App.css'
-
-type SelectedPieceInfo = {
-  name: string
-  infoText: string
-}
 
 function App() {
   const [selectedConnection, setSelectedConnection] = useState<ConnectionWithType | null>(null)

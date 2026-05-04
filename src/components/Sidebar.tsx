@@ -1,10 +1,6 @@
 import { useEffect, useState } from 'react'
 import type { ConnectionWithType, ViewSettings, VisibilityLayers } from '../types/connections'
-
-type SelectedPieceInfo = {
-  name: string
-  infoText: string
-}
+import type { SelectedPieceInfo } from '../types/pieceInfo'
 
 type SidebarProps = {
   selectedConnection: ConnectionWithType | null
@@ -51,6 +47,26 @@ export default function Sidebar({
     } catch {
       setShareMessage(`No se pudo copiar automaticamente. Comparte este enlace: ${shareUrl}`)
     }
+  }
+
+  const connectionTierLabel = selectedConnection
+    ? selectedConnection.tipo === 'eferencia'
+      ? 'Circuito Eferente'
+      : 'Circuito Aferente'
+    : null
+
+  const pieceTierLabel = selectedPieceInfo
+    ? selectedPieceInfo.tier === 'no_mapeada'
+      ? 'Pieza No Mapeada'
+      : selectedPieceInfo.tier === 'eferencia'
+        ? 'Circuito Eferente'
+        : 'Circuito Aferente'
+    : null
+
+  const tierClassFromValue = (tier: 'eferencia' | 'aferencia' | 'no_mapeada') => {
+    if (tier === 'eferencia') return 'tier-eferente'
+    if (tier === 'aferencia') return 'tier-aferente'
+    return 'tier-no-mapeada'
   }
 
   return (
@@ -147,17 +163,30 @@ export default function Sidebar({
         <>
           <h2>{selectedConnection.nombre}</h2>
           {selectedPieceInfo?.name ? <p className="connection-type">Pieza: {selectedPieceInfo.name}</p> : null}
+          {connectionTierLabel ? (
+            <p className={`tier-badge ${tierClassFromValue(selectedConnection.tipo)}`}>
+              Nivel: {connectionTierLabel}
+            </p>
+          ) : null}
           <p className="connection-type">
             Tipo: {selectedConnection.tipo === 'eferencia' ? 'Eferencia' : 'Aferencia'}
           </p>
 
           <p>{selectedPieceInfo?.infoText || selectedConnection.infoText}</p>
+          {selectedPieceInfo?.learningPoints && selectedPieceInfo.learningPoints.length > 0 ? (
+            <div className="tools-card" aria-label="Aprendizaje anatomico de la pieza">
+              <h3>Puntos de Aprendizaje</h3>
+              {selectedPieceInfo.learningPoints.map((point) => (
+                <p key={point} className="tool-caption">- {point}</p>
+              ))}
+            </div>
+          ) : null}
 
           {Array.isArray(selectedConnection.externalTargets) && selectedConnection.externalTargets.length > 0 ? (
             <div className="tools-card" aria-label="Estructuras relacionadas no modeladas">
               <h3>Estructuras Relacionadas (No Modeladas)</h3>
               {selectedConnection.externalTargets.map((target: string) => (
-                <p key={target} className="tool-caption">• {target}</p>
+                <p key={target} className="tool-caption">- {target}</p>
               ))}
             </div>
           ) : null}
@@ -166,7 +195,7 @@ export default function Sidebar({
             <div className="tools-card" aria-label="Recursos faltantes">
               <h3>Recursos Faltantes</h3>
               {selectedConnection.missingAssets.map((item: string) => (
-                <p key={item} className="tool-caption">• {item}</p>
+                <p key={item} className="tool-caption">- {item}</p>
               ))}
             </div>
           ) : null}
@@ -186,8 +215,21 @@ export default function Sidebar({
           {selectedPieceInfo ? (
             <>
               <h2>{selectedPieceInfo.name}</h2>
+              {pieceTierLabel ? (
+                <p className={`tier-badge ${tierClassFromValue(selectedPieceInfo.tier)}`}>
+                  Nivel: {pieceTierLabel}
+                </p>
+              ) : null}
               <p className="connection-type">Pieza del modelo 3D</p>
               <p>{selectedPieceInfo.infoText}</p>
+              {selectedPieceInfo.learningPoints && selectedPieceInfo.learningPoints.length > 0 ? (
+                <div className="tools-card" aria-label="Aprendizaje anatomico de la pieza">
+                  <h3>Puntos de Aprendizaje</h3>
+                  {selectedPieceInfo.learningPoints.map((point) => (
+                    <p key={point} className="tool-caption">- {point}</p>
+                  ))}
+                </div>
+              ) : null}
             </>
           ) : (
             <>

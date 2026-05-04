@@ -26,6 +26,7 @@ import ExternalTargetIndicator from './components/ExternalTargetIndicator'
 import CameraControls from './components/CameraControls'
 import connectionsData from '../data/connections.json'
 import type { ConnectionWithType, ConnectionsSchema, Vec3, ViewSettings } from './types/connections'
+import type { SelectedPieceInfo } from './types/pieceInfo'
 import './Scene.css'
 
 const connections = connectionsData as unknown as ConnectionsSchema
@@ -39,6 +40,8 @@ type CameraGoal = {
   target: Vec3
   position: Vec3
 }
+
+type QuickViewPreset = 'isometric' | 'front' | 'back' | 'left' | 'right' | 'top' | 'bottom'
 
 // Target placeholders removed in favour of dynamic geometry & pins.
 
@@ -155,7 +158,7 @@ function CanvasPointerManager({ onPointerMissed }: { onPointerMissed: () => void
 type SceneProps = {
   selectedConnection: ConnectionWithType | null
   onSelectConnection: (connection: ConnectionWithType | null) => void
-  onSelectedPieceInfoChange?: (pieceInfo: { name: string; infoText: string } | null) => void
+  onSelectedPieceInfoChange?: (pieceInfo: SelectedPieceInfo | null) => void
   viewSettings: ViewSettings
   onModelBoundsComputed?: (bounds: { halfHeight: number; halfWidth: number }) => void
 }
@@ -173,6 +176,19 @@ const THALAMIC_NUCLEUS_DIRECTIONS: Record<string, Vec3> = {
   geniculado_lateral: [0.12, -0.06, -0.14],
 }
 
+const THALAMIC_EFFERENT_START_DIRECTIONS: Record<string, Vec3> = {
+  anterior: [0.1, 0.22, 0.16],
+  dorsomedial: [0.18, 0.14, 0.08],
+  dorsal_lateral: [0.24, 0.08, 0.04],
+  ventral_anterior: [0.2, -0.04, 0.12],
+  ventral_lateral: [0.24, -0.08, 0.1],
+  vpm: [0.2, -0.16, 0.1],
+  vpl: [0.24, -0.18, 0.08],
+  intralaminar: [0.14, 0.02, 0.06],
+  geniculado_medial: [0.24, -0.08, -0.14],
+  geniculado_lateral: [0.28, -0.06, -0.18],
+}
+
 const EFERENT_FALLBACK_NODE_TOKENS: Record<string, string[]> = {
   geniculado_medial: ['superiortemporal', 'transversetemporal', 'middletemporal', 'temporalpole'],
   geniculado_lateral: ['pericalcarine', 'lateraloccipital', 'cuneus', 'lingual'],
@@ -182,8 +198,128 @@ const EFERENT_FALLBACK_NODE_TOKENS: Record<string, string[]> = {
   ventral_lateral: ['precentral', 'superiorfrontal'],
 }
 
+type AfferentSpec = {
+  id: string
+  nucleusId: string
+  nombre: string
+  infoText: string
+  externalTargets?: string[]
+  missingAssets?: string[]
+  sourceDirection: Vec3
+  sourceDistanceMultiplier: number
+}
+
+const AFFERENT_SPECS: AfferentSpec[] = [
+  {
+    id: 'af_anterior_mamilar',
+    nucleusId: 'anterior',
+    nombre: 'Cuerpos Mamilares / Hipotalamo',
+    infoText: 'Aferencia hacia nucleo anterior desde fasciculo mamilotalamico, giro del cingulo e hipotalamo.',
+    externalTargets: ['Cuerpos mamilares', 'Hipotalamo'],
+    missingAssets: ['Linea (vector) del fasciculo mamilotalamico'],
+    sourceDirection: [0.72, 0.42, 0.18],
+    sourceDistanceMultiplier: 1.55,
+  },
+  {
+    id: 'af_dorsomedial_hipotalamo',
+    nucleusId: 'dorsomedial',
+    nombre: 'Hipotalamo / Area Olfatoria',
+    infoText: 'Aferencia hacia nucleo dorsomedial desde hipotalamo y otros nucleos talamicos; integra componentes olfatorio-afectivos.',
+    externalTargets: ['Hipotalamo', 'Otros nucleos talamicos'],
+    missingAssets: ['Imagen 2D de area olfatoria'],
+    sourceDirection: [0.64, 0.34, 0.08],
+    sourceDistanceMultiplier: 1.48,
+  },
+  {
+    id: 'af_dorsal_lateral_nucleos',
+    nucleusId: 'dorsal_lateral',
+    nombre: 'Otros Nucleos Talamicos',
+    infoText: 'Aferencia hacia nucleo dorsal lateral/posterior lateral/pulvinar desde corteza cerebral y otros nucleos talamicos.',
+    externalTargets: ['Otros nucleos talamicos'],
+    sourceDirection: [0.58, 0.2, 0.18],
+    sourceDistanceMultiplier: 1.34,
+  },
+  {
+    id: 'af_ventral_anterior_reticular',
+    nucleusId: 'ventral_anterior',
+    nombre: 'Formacion Reticular',
+    infoText: 'Aferencia hacia nucleo ventral anterior desde formacion reticular y otros nucleos talamicos.',
+    externalTargets: ['Formacion reticular', 'Otros nucleos talamicos'],
+    missingAssets: ['Imagen 2D de sustancia negra', 'Imagen 2D de cuerpo estriado'],
+    sourceDirection: [0.7, -0.18, 0.08],
+    sourceDistanceMultiplier: 1.62,
+  },
+  {
+    id: 'af_ventral_lateral_cerebelo',
+    nucleusId: 'ventral_lateral',
+    nombre: 'Cerebelo / Nucleo Rojo',
+    infoText: 'Aferencia principal hacia nucleo ventral lateral procedente del cerebelo, con contribucion menor del nucleo rojo.',
+    externalTargets: ['Cerebelo', 'Nucleo rojo'],
+    missingAssets: ['Imagen 2D de nucleo rojo'],
+    sourceDirection: [0.84, -0.36, -0.06],
+    sourceDistanceMultiplier: 1.7,
+  },
+  {
+    id: 'af_vpm_tronco',
+    nucleusId: 'vpm',
+    nombre: 'Tronco Encefalico Superior',
+    infoText: 'Aferencia hacia VPM desde lemnisco del trigemino y fibras gustativas.',
+    externalTargets: ['Lemnisco del trigemino', 'Fibras gustativas'],
+    missingAssets: ['Imagen 2D de via gustativa'],
+    sourceDirection: [0.72, -0.3, 0.22],
+    sourceDistanceMultiplier: 1.65,
+  },
+  {
+    id: 'af_vpl_lemniscos',
+    nucleusId: 'vpl',
+    nombre: 'Base de Medula / Tronco',
+    infoText: 'Aferencia hacia VPL desde lemnisco medial y lemnisco espinal.',
+    externalTargets: ['Lemnisco medial', 'Lemnisco espinal'],
+    sourceDirection: [0.68, -0.42, 0.14],
+    sourceDistanceMultiplier: 1.8,
+  },
+  {
+    id: 'af_intralaminar_reticular',
+    nucleusId: 'intralaminar',
+    nombre: 'Formacion Reticular',
+    infoText: 'Aferencia hacia nucleos intralaminares desde formacion reticular y fasciculos espinotalamico/trigeminotalamico.',
+    externalTargets: ['Formacion reticular', 'Fasciculo espinotalamico', 'Fasciculo trigeminotalamico'],
+    sourceDirection: [0.62, -0.08, 0.04],
+    sourceDistanceMultiplier: 1.42,
+  },
+  {
+    id: 'af_geniculado_medial_coliculo',
+    nucleusId: 'geniculado_medial',
+    nombre: 'Coliculo Inferior / Lemnisco Lateral',
+    infoText: 'Aferencia hacia cuerpo geniculado medial desde coliculo inferior y lemnisco lateral.',
+    externalTargets: ['Coliculo inferior', 'Lemnisco lateral'],
+    missingAssets: ['Imagen 2D de oido interno (coclea)'],
+    sourceDirection: [0.68, -0.16, -0.28],
+    sourceDistanceMultiplier: 1.58,
+  },
+  {
+    id: 'af_geniculado_lateral_optico',
+    nucleusId: 'geniculado_lateral',
+    nombre: 'Tracto Optico / Globo Ocular',
+    infoText: 'Aferencia hacia cuerpo geniculado lateral a traves del tracto optico.',
+    externalTargets: ['Tracto optico', 'Globo ocular'],
+    missingAssets: ['Imagen 2D de globo ocular'],
+    sourceDirection: [0.74, -0.06, -0.4],
+    sourceDistanceMultiplier: 1.82,
+  },
+]
+
 function canonicalNodeKey(value: string): string {
   return (value || '').toLowerCase().replace(/[^a-z0-9]/g, '')
+}
+
+function getNucleusIdForConnection(connection: ConnectionWithType): string {
+  const nucleusId = (connection as any).nucleusId as string | undefined
+  return nucleusId ?? connection.id
+}
+
+function isRightHemisphereName(value: string): boolean {
+  return /(^|[.\-_])rh([.\-_]|$)/i.test(value || '')
 }
 
 function extractMeshNameTokens(rawName: string): string[] {
@@ -191,6 +327,10 @@ function extractMeshNameTokens(rawName: string): string[] {
 
   const baseName = rawName.split('/').pop()?.split('\\').pop() ?? rawName
   const withoutExt = baseName.replace(/\.(obj|stl|mtl)$/i, '')
+  const normalizedCompact = withoutExt
+    .toLowerCase()
+    .replace(/^(lh|rh)?pialdk/, '')
+    .replace(/^(lh|rh)/, '')
   const splitTokens = withoutExt
     .split(/[.\-_ ]+/)
     .map((token) => token.toLowerCase().trim())
@@ -200,12 +340,13 @@ function extractMeshNameTokens(rawName: string): string[] {
   const filteredTokens = splitTokens.filter((token) => !ignored.has(token))
   const regionToken = filteredTokens.length > 0 ? filteredTokens[filteredTokens.length - 1] : withoutExt.toLowerCase()
 
-  return Array.from(new Set([regionToken, ...filteredTokens, withoutExt.toLowerCase()]))
+  return Array.from(new Set([regionToken, ...filteredTokens, normalizedCompact, withoutExt.toLowerCase()]))
 }
 
 function formatPieceName(rawName: string): string {
   const tokens = extractMeshNameTokens(rawName)
-  const regionRaw = tokens[0] || 'unknown'
+  const resolvedRegionKey = resolveKnowledgeKey(rawName, tokens)
+  const regionRaw = resolvedRegionKey || tokens[0] || 'unknown'
   const hemisphere = rawName.toLowerCase().includes('lh')
     ? 'Hemisferio Izquierdo'
     : rawName.toLowerCase().includes('rh')
@@ -231,7 +372,6 @@ function formatPieceName(rawName: string): string {
     .replace(/cingulate/gi, ' cingulate ')
     .replace(/calcarine/gi, ' calcarine ')
     .replace(/hippocampal/gi, ' hippocampal ')
-    .replace(/central/gi, ' central ')
     .replace(/isthmus/gi, ' isthmus ')
     .replace(/transverse/gi, ' transverse ')
     .replace(/\s+/g, ' ')
@@ -250,37 +390,325 @@ function formatPieceName(rawName: string): string {
   return `${title || rawName} (${hemisphere})`
 }
 
-function buildAcademicPieceInfo(rawName: string): string {
+type PieceKnowledge = {
+  summary: string
+  learningPoints: string[]
+}
+
+type ThalamusPieceMeta = {
+  center: Vec3
+  radius: number
+}
+
+const PIECE_KNOWLEDGE_BASE: Record<string, PieceKnowledge> = {
+  precentral: {
+    summary: 'Corteza motora primaria; participa en la ejecucion voluntaria del movimiento, especialmente en control contralateral.',
+    learningPoints: [
+      'Integra planes motores provenientes de corteza premotora y suplementaria.',
+      'Su somatotopia ayuda a interpretar deficits motores focales.',
+      'En este proyecto suele aparecer dentro de circuitos talamicos ventrales.',
+    ],
+  },
+  postcentral: {
+    summary: 'Corteza somatosensorial primaria; releva tacto, propiocepcion y dolor hacia percepcion consciente.',
+    learningPoints: [
+      'Recibe informacion talamica de VPM/VPL en representacion somatotopica.',
+      'Su organizacion en areas 3, 1 y 2 sustenta discriminacion sensitiva fina.',
+      'Lesiones pueden producir hipoestesia contralateral y perdida de discriminacion tactil.',
+    ],
+  },
+  superiorfrontal: {
+    summary: 'Region frontal superior asociada a control ejecutivo, atencion sostenida y planificacion.',
+    learningPoints: [
+      'Contribuye al control top-down de conducta y toma de decisiones.',
+      'Tiene interacciones funcionales con circuitos fronto-talamicos.',
+      'Relevante para tareas de memoria de trabajo y monitoreo cognitivo.',
+    ],
+  },
+  rostralmiddlefrontal: {
+    summary: 'Corteza prefrontal dorsolateral rostral, relacionada con control cognitivo y flexibilidad mental.',
+    learningPoints: [
+      'Participa en memoria de trabajo y actualizacion de reglas.',
+      'Interviene en inhibicion de respuestas automaticas.',
+      'Suele integrarse en redes ejecutivas frontoparietales.',
+    ],
+  },
+  caudalmiddlefrontal: {
+    summary: 'Subregion prefrontal con papel en planificacion de accion y control atencional.',
+    learningPoints: [
+      'Conecta funciones ejecutivas con seleccion de respuesta motora.',
+      'Importante para organizacion secuencial de acciones.',
+      'Puede participar en sintomas disejecutivos cuando se altera.',
+    ],
+  },
+  medialorbitofrontal: {
+    summary: 'Corteza orbitofrontal medial vinculada a valoracion emocional y toma de decisiones basada en recompensa.',
+    learningPoints: [
+      'Integra senales viscerales y afectivas para guiar elecciones.',
+      'Participa en regulacion socioemocional y aprendizaje por refuerzo.',
+      'Su alteracion puede afectar juicio y control impulsivo.',
+    ],
+  },
+  lateralorbitofrontal: {
+    summary: 'Corteza orbitofrontal lateral asociada con reevaluacion de conductas y aprendizaje por castigo.',
+    learningPoints: [
+      'Contribuye a ajustar decisiones cuando cambian contingencias.',
+      'Interviene en supresion de respuestas previamente recompensadas.',
+      'Relevante en control de impulsividad y adaptacion conductual.',
+    ],
+  },
+  parsopercularis: {
+    summary: 'Componente frontal inferior con rol en lenguaje (hemisferio dominante) y control inhibitorio.',
+    learningPoints: [
+      'Parte funcional del area de Broca en dominante.',
+      'Tambien participa en circuitos de control motor del habla.',
+      'Puede relacionarse con deficit de fluidez verbal si se lesiona.',
+    ],
+  },
+  parstriangularis: {
+    summary: 'Subregion frontal inferior implicada en seleccion semantica y produccion de lenguaje.',
+    learningPoints: [
+      'Ayuda a recuperar y seleccionar contenido semantico.',
+      'Colabora con regiones temporales del lenguaje.',
+      'Su afectacion puede modificar fluidez y organizacion verbal.',
+    ],
+  },
+  parsorbitalis: {
+    summary: 'Region frontal inferior anterior vinculada a lenguaje, evaluacion social y procesamiento afectivo.',
+    learningPoints: [
+      'Integra informacion semantica y emocional.',
+      'Puede participar en evaluacion contextual de conducta social.',
+      'Aporta a redes frontolimbicas de control conductual.',
+    ],
+  },
+  superiorparietal: {
+    summary: 'Corteza parietal superior asociada a integracion visoespacial y coordinacion sensorimotora.',
+    learningPoints: [
+      'Contribuye al esquema corporal y orientacion espacial.',
+      'Importante para guiar movimientos dirigidos por vision.',
+      'Se integra con redes frontoparietales de atencion.',
+    ],
+  },
+  inferiorparietal: {
+    summary: 'Corteza parietal inferior involucrada en atencion, lenguaje y funciones de integracion multisensorial.',
+    learningPoints: [
+      'Participa en conciencia espacial y orientacion atencional.',
+      'Puede influir en procesos de lectura y procesamiento simbolico.',
+      'Disfuncion puede asociarse a negligencia espacial.',
+    ],
+  },
+  supramarginal: {
+    summary: 'Giro supramarginal relacionado con integracion fonologica, praxis y representacion corporal.',
+    learningPoints: [
+      'Contribuye a procesamiento fonologico del lenguaje.',
+      'Interviene en imitacion y planeacion de gestos.',
+      'Puede participar en sintomas de apraxia o alteraciones fonologicas.',
+    ],
+  },
+  precuneus: {
+    summary: 'Region medial parietal clave para imagineria, orientacion espacial interna y redes de estado basal.',
+    learningPoints: [
+      'Participa en memoria autobiografica y autopercepcion.',
+      'Contribuye a integracion visoespacial de alto nivel.',
+      'Nodo relevante de la red por defecto (default mode network).',
+    ],
+  },
+  insula: {
+    summary: 'La insula integra interocepcion, emocion, dolor y percepcion de estados corporales internos.',
+    learningPoints: [
+      'Conecta senales viscerales con experiencia emocional consciente.',
+      'Participa en saliencia y cambio entre redes cognitivas.',
+      'Relevante en dolor, ansiedad y regulacion autonoma.',
+    ],
+  },
+  parahippocampal: {
+    summary: 'Corteza parahipocampica asociada a memoria contextual y navegacion espacial.',
+    learningPoints: [
+      'Interviene en codificacion de escenas y contexto ambiental.',
+      'Funciona en conjunto con hipocampo para memoria episodica.',
+      'Importante para reconocimiento espacial y orientacion.',
+    ],
+  },
+  entorhinal: {
+    summary: 'Corteza entorrinal: puerta de entrada cortical al hipocampo para memoria y navegacion.',
+    learningPoints: [
+      'Transmite informacion multimodal hacia circuitos hipocampicos.',
+      'Contiene representaciones espaciales (celdas de rejilla).',
+      'Es una region vulnerable en etapas tempranas de neurodegeneracion.',
+    ],
+  },
+  temporalpole: {
+    summary: 'Polo temporal involucrado en memoria semantica, emocion social e integracion auditivo-limbica.',
+    learningPoints: [
+      'Contribuye a representacion de conocimiento conceptual.',
+      'Participa en procesamiento socioemocional.',
+      'Su conectividad lo vincula con redes limbicas y prefrontales.',
+    ],
+  },
+  superiortemporal: {
+    summary: 'Giro temporal superior relacionado con audicion, lenguaje y analisis de senales sociales.',
+    learningPoints: [
+      'Incluye cortezas auditivas asociativas.',
+      'En dominante, participa en comprension del lenguaje.',
+      'Se integra con vias auditivo-talamicas y temporo-frontales.',
+    ],
+  },
+  middletemporal: {
+    summary: 'Giro temporal medio, implicado en semantica, percepcion visual de movimiento y memoria.',
+    learningPoints: [
+      'Contribuye a integracion audiovisual y significado semantico.',
+      'Participa en reconocimiento de patrones complejos.',
+      'Colabora con redes temporoparietales del lenguaje.',
+    ],
+  },
+  inferiortemporal: {
+    summary: 'Giro temporal inferior con papel en reconocimiento de objetos y procesamiento visual de alto nivel.',
+    learningPoints: [
+      'Interviene en identificacion de formas complejas.',
+      'Aporta al reconocimiento visual semantico.',
+      'Trabaja en conjunto con vias ventrales occipitotemporales.',
+    ],
+  },
+  transversetemporal: {
+    summary: 'Giro temporal transverso (Heschl), sede principal de corteza auditiva primaria.',
+    learningPoints: [
+      'Procesa caracteristicas tonotopicas basicas del sonido.',
+      'Recibe aferencias auditivas tempranas para analisis cortical inicial.',
+      'Base para procesamiento posterior del lenguaje y musica.',
+    ],
+  },
+  pericalcarine: {
+    summary: 'Corteza pericalcarina correspondiente a corteza visual primaria (V1).',
+    learningPoints: [
+      'Recibe informacion visual desde vias geniculo-calcarinas.',
+      'Mantiene representacion retinotopica del campo visual.',
+      'Esencial para deteccion visual elemental.',
+    ],
+  },
+  lateraloccipital: {
+    summary: 'Region occipital lateral asociada a reconocimiento de objetos y forma visual.',
+    learningPoints: [
+      'Participa en analisis de contornos y categorias visuales.',
+      'Integra informacion de vias visuales ventrales.',
+      'Contribuye a identificar objetos complejos.',
+    ],
+  },
+  cuneus: {
+    summary: 'Region occipital medial vinculada a procesamiento visual basico y atencion visual.',
+    learningPoints: [
+      'Participa en representacion de porciones del campo visual.',
+      'Contribuye a integracion visoespacial temprana.',
+      'Puede activarse en tareas de imaginacion visual.',
+    ],
+  },
+  lingual: {
+    summary: 'Giro lingual implicado en procesamiento visual, color y analisis de patrones complejos.',
+    learningPoints: [
+      'Contribuye a procesamiento visual de palabras y escenas.',
+      'Participa en funciones visoperceptivas de alto nivel.',
+      'Se integra con redes occipitotemporales.',
+    ],
+  },
+  fusiform: {
+    summary: 'Giro fusiforme asociado a reconocimiento de caras, objetos y categorias visuales especializadas.',
+    learningPoints: [
+      'Incluye zonas para reconocimiento facial (hemisferio derecho predominante).',
+      'Contribuye al reconocimiento experto de patrones visuales.',
+      'Importante para vias ventrales de identificacion visual.',
+    ],
+  },
+  rostralanteriorcingulate: {
+    summary: 'Cingulo anterior rostral vinculado a regulacion emocional, motivacion y monitoreo interno.',
+    learningPoints: [
+      'Integra componentes afectivos con control cognitivo.',
+      'Participa en evaluacion de conflicto y esfuerzo.',
+      'Conectado con redes limbicas y frontales mediales.',
+    ],
+  },
+  caudalanteriorcingulate: {
+    summary: 'Cingulo anterior caudal con funcion en control cognitivo, dolor y seleccion de respuesta.',
+    learningPoints: [
+      'Ayuda a modular respuestas conductuales ante conflicto.',
+      'Contribuye a componente motivacional del dolor.',
+      'Se integra con circuitos de control ejecutivo.',
+    ],
+  },
+  posteriorcingulate: {
+    summary: 'Cingulo posterior, nodo central de la red por defecto y memoria autobiografica.',
+    learningPoints: [
+      'Relacionada con orientacion interna y recuperacion mnestica.',
+      'Contribuye a integracion de contexto personal.',
+      'Participa en dinamica de atencion interna-externa.',
+    ],
+  },
+  isthmuscingulate: {
+    summary: 'Istmo del cingulo que conecta cingulo posterior con regiones parahipocampicas.',
+    learningPoints: [
+      'Interfaz entre memoria contextual y redes cinguladas.',
+      'Contribuye a continuidad funcional de circuitos limbicos.',
+      'Relevante para integracion de informacion autobiografica.',
+    ],
+  },
+  paracentral: {
+    summary: 'Lobulo paracentral con representacion motora y sensitiva de miembros inferiores.',
+    learningPoints: [
+      'Integra funciones motoras y somatosensoriales mediales.',
+      'Clave en control de pierna y pie contralaterales.',
+      'Puede relacionarse con funciones esfinterianas en corteza medial.',
+    ],
+  },
+  bankssts: {
+    summary: 'Region de los bancos del surco temporal superior, implicada en percepcion social y audiovisual.',
+    learningPoints: [
+      'Participa en procesamiento de voz, mirada y movimiento biologico.',
+      'Contribuye a integracion multisensorial temporal.',
+      'Se vincula con cognicion social y lenguaje prosodico.',
+    ],
+  },
+}
+
+const KNOWLEDGE_KEY_ENTRIES = Object.keys(PIECE_KNOWLEDGE_BASE)
+  .map((key) => ({ key, canonical: canonicalNodeKey(key) }))
+  .sort((a, b) => b.canonical.length - a.canonical.length)
+
+function resolveKnowledgeKey(rawName: string, tokens?: string[]): string | null {
+  const candidates = new Set<string>()
+  candidates.add(canonicalNodeKey(rawName))
+  ;(tokens ?? extractMeshNameTokens(rawName)).forEach((token) => {
+    candidates.add(canonicalNodeKey(token))
+  })
+
+  for (const candidate of candidates) {
+    if (!candidate) continue
+    for (const entry of KNOWLEDGE_KEY_ENTRIES) {
+      if (candidate === entry.canonical || candidate.includes(entry.canonical)) {
+        return entry.key
+      }
+    }
+  }
+
+  return null
+}
+
+function buildAcademicPieceInfo(rawName: string): Pick<SelectedPieceInfo, 'infoText' | 'learningPoints'> {
   const tokens = extractMeshNameTokens(rawName)
-  const tokenSet = new Set(tokens.map((token) => token.toLowerCase()))
-  const hasAny = (...names: string[]) => names.some((name) => tokenSet.has(name))
-
-  if (hasAny('precentral', 'paracentral')) {
-    return 'Region cortical asociada a planificacion y ejecucion motora. En la tabla clinica, se relaciona con circuitos talamicos ventrales (anterior/lateral).'
-  }
-  if (hasAny('postcentral')) {
-    return 'Region somatosensorial primaria. En el esquema clinico se vincula con eferencias de VPM/VPL para relevo sensitivo.'
-  }
-  if (hasAny('superiortemporal', 'transversetemporal')) {
-    return 'Region temporal superior vinculada con procesamiento auditivo; consistente con proyecciones del cuerpo geniculado medial.'
-  }
-  if (hasAny('pericalcarine', 'lateraloccipital', 'cuneus', 'lingual')) {
-    return 'Region occipital/visual; en la tabla corresponde a circuitos del cuerpo geniculado lateral y radiaciones opticas.'
-  }
-  if (hasAny('rostralanteriorcingulate', 'isthmuscingulate', 'posteriorcingulate')) {
-    return 'Region cingulada de asociacion limbica. Se relaciona con circuitos talamicos anteriores implicados en memoria y tono emocional.'
-  }
-  if (hasAny('superiorfrontal', 'rostralmiddlefrontal', 'medialorbitofrontal', 'caudalmiddlefrontal', 'frontalpole')) {
-    return 'Region prefrontal de integracion cognitiva/afectiva, compatible con vias dorsomediales del talamo descritas en la tabla.'
-  }
-  if (hasAny('superiorparietal', 'inferiorparietal', 'supramarginal', 'precuneus')) {
-    return 'Region parietal de asociacion sensoriomotora. Puede participar en circuitos dorsales talamicos de integracion.'
-  }
-  if (hasAny('insula', 'parahippocampal', 'entorhinal', 'temporalpole')) {
-    return 'Region de asociacion multimodal/limbica. Esta pieza no tiene conexion explicita en el mapa clinico actual, pero conserva valor academico de referencia.'
+  const key = resolveKnowledgeKey(rawName, tokens)
+  if (key) {
+    const entry = PIECE_KNOWLEDGE_BASE[key]
+    return {
+      infoText: entry.summary,
+      learningPoints: entry.learningPoints,
+    }
   }
 
-  return 'Pieza detectada en el modelo 3D. No tiene conexion explicita en el mapa clinico actual, pero se mantiene visible para exploracion anatomica academica.'
+  return {
+    infoText: 'Pieza detectada en el modelo 3D. No pertenece a los circuitos talamicos mapeados en la tabla clinica actual, pero se conserva para estudio anatomico contextual.',
+    learningPoints: [
+      'Utiliza esta pieza para relacionar vecindad anatomica con las estructuras del circuito talamico.',
+      'Aunque no tenga via mapeada en esta version, puede tener importancia funcional en redes corticales asociadas.',
+      'La clasificacion actual puede ampliarse en futuras iteraciones del mapa clinico.',
+    ],
+  }
 }
 
 function isLikelyThalamicMesh(rawName: string): boolean {
@@ -317,12 +745,16 @@ export default function Scene({
   const [modelRadiusLocal, setModelRadiusLocal] = useState<number>(2.5)
   const [isAutoRotate, setIsAutoRotate] = useState(false)
   const [activeView, setActiveView] = useState<string | null>(null)
+  const [activeQuickView, setActiveQuickView] = useState<QuickViewPreset | null>(null)
+  const [modelColor, setModelColor] = useState('#ced8e6')
   const HOME_VIEW_MULTIPLIER = 3.8
   const [manualHighlighted, setManualHighlighted] = useState<string[] | null>(null)
   const [pinsWorld, setPinsWorld] = useState<Record<string, [number, number, number]>>({})
   const [modelCenterWorld, setModelCenterWorld] = useState<Vec3>([0, 0, 0])
   const [thalamusCenterWorld, setThalamusCenterWorld] = useState<Vec3>([0, 0, 0])
   const [thalamusRadiusWorld, setThalamusRadiusWorld] = useState<number>(0.18)
+  const [thalamusPieceMap, setThalamusPieceMap] = useState<Record<string, ThalamusPieceMeta>>({})
+  const [efferentThalamusPieceByConnection, setEfferentThalamusPieceByConnection] = useState<Record<string, string>>({})
   const [nodeCenterMap, setNodeCenterMap] = useState<Record<string, Vec3>>({})
   const [selectedMeshCenter, setSelectedMeshCenter] = useState<Vec3 | null>(null)
   const [selectedMeshName, setSelectedMeshName] = useState<string | null>(null)
@@ -341,10 +773,46 @@ export default function Scene({
     return plane
   }, [viewSettings.clippingOffsetX])
 
-  const allConnections = [
-    ...connections.eferencias.map((item) => ({ ...item, tipo: 'eferencia' as const })),
-    ...connections.aferencias.map((item) => ({ ...item, tipo: 'aferencia' as const })),
-  ]
+  const eferentConnections = useMemo(
+    () => connections.eferencias.map((item) => ({ ...item, tipo: 'eferencia' as const })),
+    [],
+  )
+
+  const efferentById = useMemo(() => {
+    const map = new Map<string, ConnectionWithType>()
+    eferentConnections.forEach((connection) => map.set(connection.id, connection))
+    return map
+  }, [eferentConnections])
+
+  const afferentConnections = useMemo(() => {
+    return AFFERENT_SPECS.map((spec) => {
+      const targetNucleus = efferentById.get(spec.nucleusId)
+      const nucleusLocal = targetNucleus?.posicionLocal ?? [0, 0, 0]
+      const center = new Vector3(modelCenterWorld[0], modelCenterWorld[1], modelCenterWorld[2])
+      const direction = new Vector3(spec.sourceDirection[0], spec.sourceDirection[1], spec.sourceDirection[2]).normalize()
+      const sourceDistance = Math.max(1.2, modelRadiusLocal * spec.sourceDistanceMultiplier)
+      const sourcePosition = center.clone().add(direction.multiplyScalar(sourceDistance))
+
+      return {
+        id: spec.id,
+        nucleusId: spec.nucleusId,
+        nombre: spec.nombre,
+        posicionLocal: nucleusLocal as Vec3,
+        posicionDestino: [sourcePosition.x, sourcePosition.y, sourcePosition.z] as Vec3,
+        colorLinea: '#2563eb',
+        infoText: spec.infoText,
+        externalTargets: spec.externalTargets ?? [],
+        missingAssets: spec.missingAssets ?? [],
+        pin: false,
+        tipo: 'aferencia' as const,
+      }
+    })
+  }, [efferentById, modelCenterWorld, modelRadiusLocal])
+
+  const allConnections = useMemo(
+    () => [...eferentConnections, ...afferentConnections],
+    [eferentConnections, afferentConnections],
+  )
 
   // Compute model bounds once the model group is available and notify parent for slider range.
   useEffect(() => {
@@ -380,6 +848,7 @@ export default function Scene({
 
       const next: Record<string, [number, number, number]> = {}
       const nodeAccum = new Map<string, { sum: Vector3; count: number }>()
+      const nextThalamusPieceMap: Record<string, ThalamusPieceMeta> = {}
       allConnections.forEach((c) => {
         if (c.pin) {
           const local = new Vector3(c.posicionDestino[0], c.posicionDestino[1], c.posicionDestino[2])
@@ -392,7 +861,8 @@ export default function Scene({
         const rawName = obj?.name || ''
         if (!rawName) return
         try {
-          const center = new Box3().setFromObject(obj).getCenter(new Vector3())
+          const box = new Box3().setFromObject(obj)
+          const center = box.getCenter(new Vector3())
           if (!Number.isFinite(center.x) || !Number.isFinite(center.y) || !Number.isFinite(center.z)) return
           const keys = new Set<string>()
           keys.add(canonicalNodeKey(rawName))
@@ -408,28 +878,85 @@ export default function Scene({
               prev.count += 1
             }
           })
+
+          if (obj?.isMesh && isLikelyThalamicMesh(rawName)) {
+            const sphere = box.getBoundingSphere(new Sphere())
+            nextThalamusPieceMap[rawName] = {
+              center: [center.x, center.y, center.z],
+              radius: Math.max(0.01, sphere.radius || 0.01),
+            }
+          }
         } catch {
           // ignore malformed mesh
         }
       })
 
-      // Build thalamus envelope from clinical nucleus anchors in data.
-      const eferentPoints: Vector3[] = []
-      allConnections.forEach((c) => {
-        if (c.tipo !== 'eferencia') return
-        const w = new Vector3(c.posicionLocal[0], c.posicionLocal[1], c.posicionLocal[2]).applyMatrix4(modelGroup.matrixWorld)
-        eferentPoints.push(w)
-      })
-
-      if (eferentPoints.length > 0) {
-        const avg = eferentPoints.reduce((acc, value) => acc.add(value), new Vector3()).divideScalar(eferentPoints.length)
-        const maxDist = eferentPoints.reduce((acc, value) => Math.max(acc, value.distanceTo(avg)), 0)
-        setThalamusCenterWorld([avg.x, avg.y, avg.z])
-        setThalamusRadiusWorld(Math.max(0.08, maxDist + modelRadiusLocal * 0.03))
+      // Build thalamus envelope from detected thalamus pieces; fallback to clinical anchors.
+      const thalamusPieces = Object.values(nextThalamusPieceMap)
+      if (thalamusPieces.length > 0) {
+        const center = thalamusPieces
+          .reduce((acc, piece) => acc.add(new Vector3(piece.center[0], piece.center[1], piece.center[2])), new Vector3())
+          .divideScalar(thalamusPieces.length)
+        const maxDist = thalamusPieces.reduce((acc, piece) => {
+          const pieceCenter = new Vector3(piece.center[0], piece.center[1], piece.center[2])
+          return Math.max(acc, center.distanceTo(pieceCenter) + piece.radius)
+        }, 0)
+        setThalamusCenterWorld([center.x, center.y, center.z])
+        setThalamusRadiusWorld(Math.max(0.08, maxDist))
       } else {
-        setThalamusCenterWorld(modelCenterWorld)
-        setThalamusRadiusWorld(Math.max(0.08, modelRadiusLocal * 0.08))
+        const eferentPoints: Vector3[] = []
+        allConnections.forEach((c) => {
+          if (c.tipo !== 'eferencia') return
+          const w = new Vector3(c.posicionLocal[0], c.posicionLocal[1], c.posicionLocal[2]).applyMatrix4(modelGroup.matrixWorld)
+          eferentPoints.push(w)
+        })
+
+        if (eferentPoints.length > 0) {
+          const avg = eferentPoints.reduce((acc, value) => acc.add(value), new Vector3()).divideScalar(eferentPoints.length)
+          const maxDist = eferentPoints.reduce((acc, value) => Math.max(acc, value.distanceTo(avg)), 0)
+          setThalamusCenterWorld([avg.x, avg.y, avg.z])
+          setThalamusRadiusWorld(Math.max(0.08, maxDist + modelRadiusLocal * 0.03))
+        } else {
+          setThalamusCenterWorld(modelCenterWorld)
+          setThalamusRadiusWorld(Math.max(0.08, modelRadiusLocal * 0.08))
+        }
       }
+      setThalamusPieceMap(nextThalamusPieceMap)
+
+      // Assign each efferent nucleus to the closest thalamus piece so line starts are anchored to real model pieces.
+      const pieceEntries = Object.entries(nextThalamusPieceMap)
+      const nextConnectionPieceMap: Record<string, string> = {}
+      if (pieceEntries.length > 0) {
+        const remaining = new Set(pieceEntries.map(([name]) => name))
+        const efferents = allConnections.filter((connection) => connection.tipo === 'eferencia')
+        efferents.forEach((connection) => {
+          const anchor = new Vector3(
+            connection.posicionLocal[0],
+            connection.posicionLocal[1],
+            connection.posicionLocal[2],
+          ).applyMatrix4(modelGroup.matrixWorld)
+
+          const candidateNames = (remaining.size > 0 ? Array.from(remaining) : pieceEntries.map(([name]) => name))
+          let bestName = candidateNames[0]
+          let bestDist = Number.POSITIVE_INFINITY
+          candidateNames.forEach((name) => {
+            const piece = nextThalamusPieceMap[name]
+            if (!piece) return
+            const c = new Vector3(piece.center[0], piece.center[1], piece.center[2])
+            const d = c.distanceTo(anchor)
+            if (d < bestDist) {
+              bestDist = d
+              bestName = name
+            }
+          })
+
+          if (bestName) {
+            nextConnectionPieceMap[connection.id] = bestName
+            remaining.delete(bestName)
+          }
+        })
+      }
+      setEfferentThalamusPieceByConnection(nextConnectionPieceMap)
 
       const nextNodeMap: Record<string, Vec3> = {}
       nodeAccum.forEach((entry, key) => {
@@ -474,8 +1001,18 @@ export default function Scene({
         })
       }
     })
+
+    Object.entries(efferentThalamusPieceByConnection).forEach(([connectionId, pieceName]) => {
+      const connection = allConnections.find((c) => c.id === connectionId)
+      if (!connection) return
+      map.set(canonicalNodeKey(pieceName), connection)
+      extractMeshNameTokens(pieceName).forEach((candidate) => {
+        map.set(canonicalNodeKey(candidate), connection)
+      })
+    })
+
     return map
-  }, [allConnections])
+  }, [allConnections, efferentThalamusPieceByConnection])
 
   // Set an initial camera position relative to the model bounds once both model and controls are ready.
   const initialPositionSetRef = useRef(false)
@@ -539,6 +1076,7 @@ export default function Scene({
     setActiveView(connection.id)
     onSelectedPieceInfoChange?.({
       name: pieceName ?? connection.nombre,
+      tier: connection.tipo,
       infoText: hasApproxAnchor
         ? `${connection.infoText} Origen talamico mostrado de forma aproximada sobre el modelo para representar la via eferente.`
         : connection.infoText,
@@ -548,7 +1086,47 @@ export default function Scene({
       return
     }
 
+    setActiveQuickView(null)
     setCameraGoal(buildFocusGoal(controlsRef.current, organPosition, pieceRadius))
+  }
+
+  function applyQuickView(view: QuickViewPreset) {
+    if (!controlsRef.current || !modelGroup) return
+
+    try {
+      const brainNode = modelGroup.getObjectByName('Brain_Model') ?? modelGroup
+      const box = new Box3().setFromObject(brainNode)
+      const center = box.getCenter(new Vector3())
+      const sphere = box.getBoundingSphere(new Sphere())
+
+      const cameraObject = controlsRef.current.object
+      const fovDeg = 'fov' in cameraObject ? (cameraObject.fov as number) : 48
+      const fovRad = MathUtils.degToRad(fovDeg)
+      const safeDistance = (sphere.radius / Math.sin(fovRad / 2)) * 2.35
+
+      const directions: Record<QuickViewPreset, Vector3> = {
+        isometric: new Vector3(1, 1, 1).normalize(),
+        front: new Vector3(0, 0, 1),
+        back: new Vector3(0, 0, -1),
+        left: new Vector3(-1, 0, 0),
+        right: new Vector3(1, 0, 0),
+        top: new Vector3(0, 1, 0),
+        bottom: new Vector3(0, -1, 0),
+      }
+
+      const direction = directions[view] ?? directions.isometric
+      const nextPosition = center.clone().add(direction.multiplyScalar(safeDistance))
+
+      setCameraGoal({
+        target: [center.x, center.y, center.z],
+        position: [nextPosition.x, nextPosition.y, nextPosition.z],
+      })
+
+      setActiveQuickView(view)
+      setIsAutoRotate(false)
+    } catch (err) {
+      // ignore
+    }
   }
 
   const orbitControlsProps: OrbitControlsProps = {
@@ -575,6 +1153,7 @@ export default function Scene({
     onSelectedPieceInfoChange?.(null)
     setCameraGoal(null)
     applyHomeView(HOME_VIEW_MULTIPLIER)
+    setActiveQuickView(null)
   }
 
   const handleStepZoom = (factor: number) => {
@@ -619,24 +1198,52 @@ export default function Scene({
     return [world.x, world.y, world.z]
   }
 
-  const getThalamusOriginForConnection = (connection: ConnectionWithType): Vec3 => {
+  const getThalamusOriginForConnection = (connection: ConnectionWithType, endpoint?: Vec3): Vec3 => {
+    const nucleusId = getNucleusIdForConnection(connection)
+    const pieceName = efferentThalamusPieceByConnection[nucleusId]
+    const piece = pieceName ? thalamusPieceMap[pieceName] : undefined
+    if (piece) {
+      const pieceCenter = new Vector3(piece.center[0], piece.center[1], piece.center[2])
+      const target = endpoint
+        ? new Vector3(endpoint[0], endpoint[1], endpoint[2])
+        : new Vector3(...toWorld(connection.posicionLocal))
+      let dir = target.clone().sub(pieceCenter)
+      if (dir.lengthSq() <= 0.000001) {
+        dir = pieceCenter.clone().sub(new Vector3(thalamusCenterWorld[0], thalamusCenterWorld[1], thalamusCenterWorld[2]))
+      }
+      if (dir.lengthSq() <= 0.000001) {
+        dir = new Vector3(1, 0, 0)
+      }
+      const point = pieceCenter.clone().add(dir.normalize().multiplyScalar(Math.max(0.01, piece.radius * 0.96)))
+      return [point.x, point.y, point.z]
+    }
+
     const center = new Vector3(thalamusCenterWorld[0], thalamusCenterWorld[1], thalamusCenterWorld[2])
-    const base = new Vector3(...toWorld(connection.posicionLocal))
-    const fine = THALAMIC_NUCLEUS_DIRECTIONS[connection.id]
-    const fineVec = fine ? new Vector3(fine[0], fine[1], fine[2]).multiplyScalar(Math.max(0.01, thalamusRadiusWorld * 0.35)) : new Vector3()
-    const candidate = base.clone().add(fineVec)
+    const mappedNodes = connection.tipo === 'eferencia'
+      ? (((connection as any).mappedNodes as string[] | undefined) ?? CONNECTION_NODE_MAP[nucleusId] ?? [])
+      : []
+    const hasRightHemisphereTarget = mappedNodes.some((name) => isRightHemisphereName(name))
 
-    let dir = candidate.clone().sub(center)
-    if (dir.lengthSq() <= 0.000001) {
-      dir = base.clone().sub(center)
-    }
-    if (dir.lengthSq() <= 0.000001) {
-      return [candidate.x, candidate.y, candidate.z]
+    const fallbackTarget = new Vector3(...toWorld(connection.posicionLocal))
+    const target = endpoint ? new Vector3(endpoint[0], endpoint[1], endpoint[2]) : fallbackTarget
+    let dirToTarget = target.clone().sub(center)
+    if (dirToTarget.lengthSq() <= 0.000001) {
+      dirToTarget = fallbackTarget.clone().sub(center)
     }
 
-    // Keep starts on thalamus shell (not random internal points or superior drift).
-    const radius = Math.max(0.08, thalamusRadiusWorld * 0.82)
-    const point = center.clone().add(dir.normalize().multiplyScalar(radius))
+    const nucleusDirRaw = THALAMIC_EFFERENT_START_DIRECTIONS[nucleusId] ?? THALAMIC_NUCLEUS_DIRECTIONS[nucleusId]
+    const nucleusDir = nucleusDirRaw ? new Vector3(nucleusDirRaw[0], nucleusDirRaw[1], nucleusDirRaw[2]) : new Vector3(0.18, 0, 0.08)
+    if (hasRightHemisphereTarget) {
+      nucleusDir.x = Math.abs(nucleusDir.x) + 0.06
+    }
+
+    const mixedDir = new Vector3()
+      .add(dirToTarget.normalize().multiplyScalar(0.68))
+      .add(nucleusDir.normalize().multiplyScalar(0.94))
+      .normalize()
+
+    const radius = Math.max(0.08, thalamusRadiusWorld * 0.94)
+    const point = center.clone().add(mixedDir.multiplyScalar(radius))
     return [point.x, point.y, point.z]
   }
 
@@ -650,36 +1257,61 @@ export default function Scene({
       return pinned ?? toWorld(connection.posicionDestino)
     }
 
+    const rightCenters: Vector3[] = []
     const centers: Vector3[] = []
     mapped.forEach((name) => {
+      const targetBucket = isRightHemisphereName(name) ? rightCenters : centers
       const keys = new Set<string>()
       keys.add(canonicalNodeKey(name))
       keys.add(canonicalNodeKey((name || '').replace(/\.(obj|stl|mtl)$/i, '')))
       extractMeshNameTokens(name || '').forEach((token) => keys.add(canonicalNodeKey(token)))
       keys.forEach((key) => {
         const c = nodeCenterMap[key]
-        if (c) centers.push(new Vector3(c[0], c[1], c[2]))
+        if (c) targetBucket.push(new Vector3(c[0], c[1], c[2]))
       })
     })
+    const resolvedCenters = rightCenters.length > 0 ? rightCenters : centers
 
-    if (centers.length === 0) {
+    if (resolvedCenters.length === 0) {
       const fallbackTokens = EFERENT_FALLBACK_NODE_TOKENS[connection.id] ?? []
       fallbackTokens.forEach((token) => {
         const c = nodeCenterMap[canonicalNodeKey(token)]
-        if (c) centers.push(new Vector3(c[0], c[1], c[2]))
+        if (c) resolvedCenters.push(new Vector3(c[0], c[1], c[2]))
       })
     }
 
-    if (centers.length === 0) {
+    if (resolvedCenters.length === 0) {
       const pinned = pinsWorld[connection.id]
       return pinned ?? toWorld(connection.posicionDestino)
     }
 
-    const avg = centers.reduce((acc, value) => acc.add(value), new Vector3()).divideScalar(centers.length)
+    const avg = resolvedCenters.reduce((acc, value) => acc.add(value), new Vector3()).divideScalar(resolvedCenters.length)
     return [avg.x, avg.y, avg.z]
   }
 
   const dimOpacity = activeView ? 0.1 : 1
+  const EFERENT_COLOR = '#ef4444'
+  const AFFERENT_COLOR = '#2563eb'
+  const UNMAPPED_COLOR = '#eab308'
+  const activeHighlightColor = selectedConnection
+    ? selectedConnection.tipo === 'eferencia'
+      ? EFERENT_COLOR
+      : AFFERENT_COLOR
+    : manualHighlighted
+      ? UNMAPPED_COLOR
+      : AFFERENT_COLOR
+  const selectedConnectionHighlightNames = useMemo(() => {
+    if (!selectedConnection) return null
+    const nucleusId = getNucleusIdForConnection(selectedConnection)
+    const cortexNames = (((selectedConnection as any).mappedNodes as string[] | undefined)
+      ?? CONNECTION_NODE_MAP[nucleusId]
+      ?? [])
+    const thalamusPiece = efferentThalamusPieceByConnection[nucleusId]
+    if (!thalamusPiece) {
+      return cortexNames.length > 0 ? cortexNames : null
+    }
+    return [thalamusPiece, ...cortexNames]
+  }, [selectedConnection, efferentThalamusPieceByConnection])
 
   return (
     <div className="scene-shell">
@@ -724,11 +1356,13 @@ export default function Scene({
         <ModelLoader
           url={THALAMUS_MODEL_URL}
           ref={setModelGroup}
+          modelColor={modelColor}
           onMeshClick={(info) => {
             if (!info) return
             try {
               if (controlsRef.current) {
                 const name = info.name
+                setActiveQuickView(null)
                 setManualHighlighted(name ? [name] : null)
                 setSelectedMeshName(name || null)
                 const formattedPieceName = formatPieceName(name || '')
@@ -741,11 +1375,14 @@ export default function Scene({
                 if (conn) {
                   handleSelectConnection(conn, pieceCenter, info.radius, formattedPieceName)
                 } else {
+                  const academicInfo = buildAcademicPieceInfo(name || '')
                   setActiveView(null)
                   onSelectConnection(null)
                   onSelectedPieceInfoChange?.({
                     name: formattedPieceName,
-                    infoText: buildAcademicPieceInfo(name || ''),
+                    tier: 'no_mapeada',
+                    infoText: academicInfo.infoText,
+                    learningPoints: academicInfo.learningPoints,
                   })
                   setCameraGoal(buildFocusGoal(controlsRef.current, pieceCenter, info.radius))
                 }
@@ -758,10 +1395,10 @@ export default function Scene({
           scale={0.95}
           highlightedNodeNames={
             selectedConnection
-              ? ((selectedConnection as any).mappedNodes as string[] | undefined) ?? CONNECTION_NODE_MAP[selectedConnection.id] ?? null
+              ? selectedConnectionHighlightNames
               : manualHighlighted
           }
-          highlightColor={selectedConnection?.tipo === 'eferencia' ? '#ef4444' : '#FB923C'}
+          highlightColor={activeHighlightColor}
           clippingPlanes={[clippingPlaneY, clippingPlaneX]}
           xrayMode={viewSettings.xrayMode}
           fallback={
@@ -777,6 +1414,9 @@ export default function Scene({
         {allConnections.map((connection) => {
           const isActive = selectedConnection?.id === connection.id
           const opacity = activeView && !isActive ? dimOpacity : 1
+          const lineEnd = connection.tipo === 'eferencia'
+            ? getConnectionTargetForLine(connection)
+            : connection.posicionDestino
 
           // For eferencias, use explicit mapped nodes or clinical map.
           const mapped = connection.tipo === 'eferencia'
@@ -807,20 +1447,51 @@ export default function Scene({
                   start={
                     selectedConnection?.id === connection.id && selectedMeshCenter && isLikelyThalamicMesh(selectedMeshName || '')
                       ? selectedMeshCenter
-                      : getThalamusOriginForConnection(connection)
+                      : getThalamusOriginForConnection(connection, lineEnd)
                   }
-                  end={getConnectionTargetForLine(connection)}
+                  end={lineEnd}
                   anchorCenter={modelCenterWorld}
                   startSurfaceOffset={0}
                   endSurfaceOffset={Math.max(0.02, modelRadiusLocal * 0.01)}
                   arcHeight={isActive ? Math.max(0.72, modelRadiusLocal * 0.28) : Math.max(0.52, modelRadiusLocal * 0.22)}
-                  color={connection.colorLinea}
+                  color={connection.tipo === 'eferencia' ? EFERENT_COLOR : AFFERENT_COLOR}
                   isActive={isActive}
                   opacity={opacity}
                   onClick={(event) => {
                     event.stopPropagation()
                     const world = pinsWorld[connection.id]
                     handleSelectConnection(connection, world ?? connection.posicionDestino)
+                  }}
+                />
+              )}
+
+              {viewSettings.layers.showNerves && connection.tipo === 'aferencia' && (
+                <ConnectionLine
+                  start={connection.posicionDestino}
+                  end={getThalamusOriginForConnection(connection, connection.posicionDestino)}
+                  anchorCenter={modelCenterWorld}
+                  startSurfaceOffset={0}
+                  endSurfaceOffset={Math.max(0.01, modelRadiusLocal * 0.008)}
+                  arcHeight={isActive ? Math.max(0.62, modelRadiusLocal * 0.24) : Math.max(0.48, modelRadiusLocal * 0.18)}
+                  color={AFFERENT_COLOR}
+                  isActive={isActive}
+                  opacity={opacity}
+                  onClick={(event) => {
+                    event.stopPropagation()
+                    handleSelectConnection(connection, connection.posicionDestino, modelRadiusLocal * 0.08, connection.nombre)
+                  }}
+                />
+              )}
+
+              {viewSettings.layers.showTargetOrgans && connection.tipo === 'aferencia' && (
+                <Pin
+                  position={connection.posicionDestino}
+                  label={connection.nombre}
+                  color="#60a5fa"
+                  emissive="#1d4ed8"
+                  onClick={(event) => {
+                    event.stopPropagation()
+                    handleSelectConnection(connection, connection.posicionDestino, modelRadiusLocal * 0.08, connection.nombre)
                   }}
                 />
               )}
@@ -869,6 +1540,7 @@ export default function Scene({
           maxDistance={Math.max(Math.max(0.05, modelRadiusLocal * 0.5) + 0.1, modelRadiusLocal * 5)}
           onStart={() => {
             setCameraGoal(null)
+            setActiveQuickView(null)
           }}
         />
         <CameraAnimator
@@ -888,6 +1560,8 @@ export default function Scene({
 
       <CameraControls
         isAutoRotate={isAutoRotate}
+        activeQuickView={activeQuickView}
+        modelColor={modelColor}
         onGoHome={handleGoHome}
         onZoomIn={() => {
           handleStepZoom(0.82)
@@ -897,6 +1571,12 @@ export default function Scene({
         }}
         onToggleAutoRotate={() => {
           setIsAutoRotate((currentValue) => !currentValue)
+        }}
+        onQuickView={(view) => {
+          applyQuickView(view)
+        }}
+        onModelColorChange={(nextColor) => {
+          setModelColor(nextColor)
         }}
       />
     </div>

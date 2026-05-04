@@ -6,17 +6,26 @@ type PinProps = {
   position: [number, number, number]
   label: string
   image?: string
+  color?: string
+  emissive?: string
   onClick?: (e: ThreeEvent<MouseEvent>) => void
 }
 
-export default function Pin({ position, label, image, onClick }: PinProps) {
+export default function Pin({
+  position,
+  label,
+  image,
+  color = '#ffcd00',
+  emissive = '#92400e',
+  onClick,
+}: PinProps) {
   const [open, setOpen] = useState(false)
 
   return (
     <group position={position}>
       <mesh onClick={(e) => { e.stopPropagation(); setOpen((s) => !s); onClick?.(e) }}>
         <sphereGeometry args={[0.075, 16, 16]} />
-        <meshStandardMaterial color="#ffcd00" emissive="#92400e" emissiveIntensity={0.65} />
+        <meshStandardMaterial color={color} emissive={emissive} emissiveIntensity={0.65} />
       </mesh>
 
       <Html center distanceFactor={6} transform occlude>

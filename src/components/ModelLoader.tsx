@@ -18,6 +18,7 @@ type ModelLoaderProps = ThreeElements['group'] & {
   fallback: ReactNode
   highlightedNodeNames?: string[] | null
   highlightColor?: string
+  modelColor?: string
   clippingPlanes?: Plane[]
   xrayMode?: boolean
   onMeshClick?: (info: MeshClickInfo) => void
@@ -151,6 +152,7 @@ const ModelRoot = forwardRef<any, ModelRootProps>(function ModelRoot({
   url,
   highlightedNodeNames,
   highlightColor = '#ff5a5f',
+  modelColor = '#ced8e6',
   clippingPlanes,
   xrayMode = false,
   onClick,
@@ -263,6 +265,16 @@ const ModelRoot = forwardRef<any, ModelRootProps>(function ModelRoot({
       materials.forEach((mat) => {
         if (!(mat instanceof MeshStandardMaterial || mat instanceof MeshPhysicalMaterial)) return
 
+        if (mat.userData.__baseColorHex === undefined) {
+          mat.userData.__baseColorHex = mat.color.getHex()
+        }
+
+        if (modelColor) {
+          mat.color.set(modelColor)
+        } else if (typeof mat.userData.__baseColorHex === 'number') {
+          mat.color.setHex(mat.userData.__baseColorHex)
+        }
+
         if (clippingPlanes && clippingPlanes.length > 0) {
           mat.clippingPlanes = clippingPlanes
         }
@@ -284,7 +296,7 @@ const ModelRoot = forwardRef<any, ModelRootProps>(function ModelRoot({
         }
       })
     })
-  }, [clonedScene, highlightedNodeNames, highlightColor, clippingPlanes, xrayMode])
+  }, [clonedScene, highlightedNodeNames, highlightColor, modelColor, clippingPlanes, xrayMode])
 
   return (
     <group ref={ref} {...groupProps} onClick={handleModelClick}>
