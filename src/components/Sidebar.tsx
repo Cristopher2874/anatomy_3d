@@ -1,4 +1,4 @@
-import { useEffect, useState } from 'react'
+﻿import { useEffect, useState } from 'react'
 import type {
   ConnectionVisibilityMode,
   ConnectionWithType,
@@ -50,9 +50,9 @@ export default function Sidebar({
 
     try {
       await navigator.clipboard.writeText(shareUrl)
-      setShareMessage('Enlace copiado. Invita a tu companero y revisen juntos esta via.')
+      setShareMessage('Enlace copiado. Invita a tu compañero y revisen juntos esta vía.')
     } catch {
-      setShareMessage(`No se pudo copiar automaticamente. Comparte este enlace: ${shareUrl}`)
+      setShareMessage(`No se pudo copiar automáticamente. Comparte este enlace: ${shareUrl}`)
     }
   }
 
@@ -64,7 +64,7 @@ export default function Sidebar({
 
   const pieceTierLabel = selectedPieceInfo
     ? selectedPieceInfo.tier === 'no_mapeada'
-      ? 'Pieza No Mapeada'
+      ? 'Referencia Anatómica'
       : selectedPieceInfo.tier === 'eferencia'
         ? 'Circuito Eferente'
         : 'Circuito Aferente'
@@ -86,14 +86,14 @@ export default function Sidebar({
       <section className="tools-card" aria-label="Capas de visibilidad">
         <h3>Capas de Visibilidad</h3>
 
-        <label className="layer-toggle">
+        {/* <label className="layer-toggle">
           <input
             type="checkbox"
             checked={viewSettings.layers.showNerves}
             onChange={() => onToggleLayer('showNerves')}
           />
-          <span>Nervios (Lineas)</span>
-        </label>
+          <span>Nervios (Líneas)</span>
+        </label> */}
 
         <label className="connection-visibility-control">
           <span>Mostrar conexiones</span>
@@ -116,7 +116,7 @@ export default function Sidebar({
             checked={viewSettings.layers.showTargetOrgans}
             onChange={() => onToggleLayer('showTargetOrgans')}
           />
-          <span>Organo destino (seleccion)</span>
+          <span>Órgano destino (selección)</span>
         </label>
 
       </section>
@@ -179,7 +179,7 @@ export default function Sidebar({
 
           <p>{selectedPieceInfo?.infoText || selectedConnection.infoText}</p>
           {selectedPieceInfo?.learningPoints && selectedPieceInfo.learningPoints.length > 0 ? (
-            <div className="tools-card" aria-label="Aprendizaje anatomico de la pieza">
+            <div className="tools-card" aria-label="Aprendizaje anatómico de la pieza">
               <h3>Puntos de Aprendizaje</h3>
               {selectedPieceInfo.learningPoints.map((point) => (
                 <p key={point} className="tool-caption">- {point}</p>
@@ -188,31 +188,22 @@ export default function Sidebar({
           ) : null}
 
           {Array.isArray(selectedConnection.externalTargets) && selectedConnection.externalTargets.length > 0 ? (
-            <div className="tools-card" aria-label="Estructuras relacionadas no modeladas">
-              <h3>Estructuras Relacionadas (No Modeladas)</h3>
+            <div className="tools-card" aria-label="Estructuras relacionadas">
+              <h3>Estructuras Relacionadas</h3>
               {selectedConnection.externalTargets.map((target: string) => (
                 <p key={target} className="tool-caption">- {target}</p>
               ))}
             </div>
           ) : null}
 
-          {Array.isArray(selectedConnection.missingAssets) && selectedConnection.missingAssets.length > 0 ? (
-            <div className="tools-card" aria-label="Recursos faltantes">
-              <h3>Recursos Faltantes</h3>
-              {selectedConnection.missingAssets.map((item: string) => (
-                <p key={item} className="tool-caption">- {item}</p>
-              ))}
-            </div>
-          ) : null}
-
           <button type="button" className="share-button" onClick={handleShare}>
-            Compartir esta conexion
+            Compartir esta conexión
           </button>
 
           {shareMessage ? <p className="share-feedback">{shareMessage}</p> : null}
 
           <button type="button" className="clear-button" onClick={onClearSelection}>
-            Limpiar seleccion
+            Limpiar selección
           </button>
         </>
       ) : (
@@ -228,7 +219,7 @@ export default function Sidebar({
               <p className="connection-type">Pieza del modelo 3D</p>
               <p>{selectedPieceInfo.infoText}</p>
               {selectedPieceInfo.learningPoints && selectedPieceInfo.learningPoints.length > 0 ? (
-                <div className="tools-card" aria-label="Aprendizaje anatomico de la pieza">
+                <div className="tools-card" aria-label="Aprendizaje anatómico de la pieza">
                   <h3>Puntos de Aprendizaje</h3>
                   {selectedPieceInfo.learningPoints.map((point) => (
                     <p key={point} className="tool-caption">- {point}</p>
@@ -240,13 +231,13 @@ export default function Sidebar({
             <>
               <h2>Bienvenido al laboratorio colaborativo</h2>
               <p>
-                Selecciona una conexion para explorar. Emplea los controles para personalizar tu vista.
+                Selecciona una conexión para explorar. Emplea los controles para personalizar tu vista.
               </p>
               <p>
-                Click derecho en la escena para rotar, scroll para zoom y click medio para desplazar.
+                Clic derecho en la escena para rotar, scroll para zoom y clic medio para desplazar.
               </p>
               <p>
-                Puedes ajustar los controles de visibilidad para enfocarte en lo que mas te interese.
+                Puedes ajustar los controles de visibilidad para enfocarte en lo que más te interese.
               </p>
             </>
           )}
@@ -255,3 +246,6 @@ export default function Sidebar({
     </aside>
   )
 }
+
+
+

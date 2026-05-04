@@ -1,4 +1,4 @@
-import {
+﻿import {
   useEffect,
   useMemo,
   useRef,
@@ -208,7 +208,6 @@ type AfferentSpec = {
   nombre: string
   infoText: string
   externalTargets?: string[]
-  missingAssets?: string[]
   sourceDirection: Vec3
   sourceDistanceMultiplier: number
 }
@@ -217,67 +216,62 @@ const AFFERENT_SPECS: AfferentSpec[] = [
   {
     id: 'af_anterior_mamilar',
     nucleusId: 'anterior',
-    nombre: 'Cuerpos Mamilares / Hipotalamo',
-    infoText: 'Aferencia hacia nucleo anterior desde fasciculo mamilotalamico, giro del cingulo e hipotalamo.',
-    externalTargets: ['Cuerpos mamilares', 'Hipotalamo'],
-    missingAssets: ['Linea (vector) del fasciculo mamilotalamico'],
+    nombre: 'Cuerpos Mamilares / Hipotálamo',
+    infoText: 'Aferencia hacia el núcleo anterior desde fascículo mamilotalámico, giro del cíngulo e hipotálamo. Este circuito participa en tono emocional y memoria reciente.',
+    externalTargets: ['Fascículo mamilotalámico', 'Giro del cíngulo', 'Hipotálamo'],
     sourceDirection: [0.72, 0.42, 0.18],
     sourceDistanceMultiplier: 1.55,
   },
   {
     id: 'af_dorsomedial_hipotalamo',
     nucleusId: 'dorsomedial',
-    nombre: 'Hipotalamo / Area Olfatoria',
-    infoText: 'Aferencia hacia nucleo dorsomedial desde hipotalamo y otros nucleos talamicos; integra componentes olfatorio-afectivos.',
-    externalTargets: ['Hipotalamo', 'Otros nucleos talamicos'],
-    missingAssets: ['Imagen 2D de area olfatoria'],
+    nombre: 'Hipotálamo / Área Olfatoria',
+    infoText: 'Aferencia hacia el núcleo dorsomedial desde corteza prefrontal, hipotálamo y otros núcleos talámicos. Se asocia con integración de información somática, visceral y olfatoria vinculada a estados emocionales y subjetivos.',
+    externalTargets: ['Corteza prefrontal', 'Hipotálamo', 'Otros núcleos talámicos'],
     sourceDirection: [0.64, 0.34, 0.08],
     sourceDistanceMultiplier: 1.48,
   },
   {
     id: 'af_dorsal_lateral_nucleos',
     nucleusId: 'dorsal_lateral',
-    nombre: 'Otros Nucleos Talamicos',
-    infoText: 'Aferencia hacia nucleo dorsal lateral/posterior lateral/pulvinar desde corteza cerebral y otros nucleos talamicos.',
-    externalTargets: ['Otros nucleos talamicos'],
+    nombre: 'Otros Núcleos Talámicos',
+    infoText: 'Aferencia hacia los núcleos dorsal lateral, posterior lateral y pulvinar desde corteza cerebral y otros núcleos talámicos. Corresponde a circuitos de asociación cortical.',
+    externalTargets: ['Corteza cerebral', 'Otros núcleos talámicos'],
     sourceDirection: [0.58, 0.2, 0.18],
     sourceDistanceMultiplier: 1.34,
   },
   {
     id: 'af_ventral_anterior_reticular',
     nucleusId: 'ventral_anterior',
-    nombre: 'Formacion Reticular',
-    infoText: 'Aferencia hacia nucleo ventral anterior desde formacion reticular y otros nucleos talamicos.',
-    externalTargets: ['Formacion reticular', 'Otros nucleos talamicos'],
-    missingAssets: ['Imagen 2D de sustancia negra', 'Imagen 2D de cuerpo estriado'],
+    nombre: 'Formación Reticular',
+    infoText: 'Aferencia hacia el núcleo ventral anterior desde formación reticular, sustancia negra, cuerpo estriado, corteza premotora y otros núcleos talámicos. Este circuito influye en la actividad de la corteza motora.',
+    externalTargets: ['Formación reticular', 'Sustancia negra', 'Cuerpo estriado', 'Corteza premotora', 'Otros núcleos talámicos'],
     sourceDirection: [0.7, -0.18, 0.08],
     sourceDistanceMultiplier: 1.62,
   },
   {
     id: 'af_ventral_lateral_cerebelo',
     nucleusId: 'ventral_lateral',
-    nombre: 'Cerebelo / Nucleo Rojo',
-    infoText: 'Aferencia principal hacia nucleo ventral lateral procedente del cerebelo, con contribucion menor del nucleo rojo.',
-    externalTargets: ['Cerebelo', 'Nucleo rojo'],
-    missingAssets: ['Imagen 2D de nucleo rojo'],
+    nombre: 'Cerebelo / Núcleo Rojo',
+    infoText: 'Aferencia hacia el núcleo ventral lateral con patrón similar al ventral anterior, con aporte principal del cerebelo y menor del núcleo rojo. Este circuito influye en la actividad de la corteza motora.',
+    externalTargets: ['Cerebelo', 'Núcleo rojo', 'Formación reticular', 'Sustancia negra', 'Cuerpo estriado', 'Corteza premotora', 'Otros núcleos talámicos'],
     sourceDirection: [0.84, -0.36, -0.06],
     sourceDistanceMultiplier: 1.7,
   },
   {
     id: 'af_vpm_tronco',
     nucleusId: 'vpm',
-    nombre: 'Tronco Encefalico Superior',
-    infoText: 'Aferencia hacia VPM desde lemnisco del trigemino y fibras gustativas.',
-    externalTargets: ['Lemnisco del trigemino', 'Fibras gustativas'],
-    missingAssets: ['Imagen 2D de via gustativa'],
+    nombre: 'Tronco Encefálico Superior',
+    infoText: 'Aferencia hacia VPM desde lemnisco del trigémino y fibras gustativas. Participa en la retransmisión de sensaciones somáticas hacia la conciencia, con predominio del territorio facial.',
+    externalTargets: ['Lemnisco del trigémino', 'Fibras gustativas'],
     sourceDirection: [0.72, -0.3, 0.22],
     sourceDistanceMultiplier: 1.65,
   },
   {
     id: 'af_vpl_lemniscos',
     nucleusId: 'vpl',
-    nombre: 'Base de Medula / Tronco',
-    infoText: 'Aferencia hacia VPL desde lemnisco medial y lemnisco espinal.',
+    nombre: 'Base de Médula / Tronco',
+    infoText: 'Aferencia hacia VPL desde lemniscos medial y espinal. Participa en la retransmisión de sensibilidad somática corporal hacia la conciencia.',
     externalTargets: ['Lemnisco medial', 'Lemnisco espinal'],
     sourceDirection: [0.68, -0.42, 0.14],
     sourceDistanceMultiplier: 1.8,
@@ -285,29 +279,27 @@ const AFFERENT_SPECS: AfferentSpec[] = [
   {
     id: 'af_intralaminar_reticular',
     nucleusId: 'intralaminar',
-    nombre: 'Formacion Reticular',
-    infoText: 'Aferencia hacia nucleos intralaminares desde formacion reticular y fasciculos espinotalamico/trigeminotalamico.',
-    externalTargets: ['Formacion reticular', 'Fasciculo espinotalamico', 'Fasciculo trigeminotalamico'],
+    nombre: 'Formación Reticular',
+    infoText: 'Aferencia hacia núcleos intralaminares desde formación reticular y fascículos espinotalámico y trigéminotalámico. Se relaciona con modulación de estados de conciencia y alerta.',
+    externalTargets: ['Formación reticular', 'Fascículo espinotalámico', 'Fascículo trigéminotalámico'],
     sourceDirection: [0.62, -0.08, 0.04],
     sourceDistanceMultiplier: 1.42,
   },
   {
     id: 'af_geniculado_medial_coliculo',
     nucleusId: 'geniculado_medial',
-    nombre: 'Coliculo Inferior / Lemnisco Lateral',
-    infoText: 'Aferencia hacia cuerpo geniculado medial desde coliculo inferior y lemnisco lateral.',
-    externalTargets: ['Coliculo inferior', 'Lemnisco lateral'],
-    missingAssets: ['Imagen 2D de oido interno (coclea)'],
+    nombre: 'Colículo Inferior / Lemnisco Lateral',
+    infoText: 'Aferencia hacia cuerpo geniculado medial desde colículo inferior y lemnisco lateral de ambos oídos. Este relevo participa en la vía auditiva.',
+    externalTargets: ['Colículo inferior', 'Lemnisco lateral'],
     sourceDirection: [0.68, -0.16, -0.28],
     sourceDistanceMultiplier: 1.58,
   },
   {
     id: 'af_geniculado_lateral_optico',
     nucleusId: 'geniculado_lateral',
-    nombre: 'Tracto Optico / Globo Ocular',
-    infoText: 'Aferencia hacia cuerpo geniculado lateral a traves del tracto optico.',
-    externalTargets: ['Tracto optico', 'Globo ocular'],
-    missingAssets: ['Imagen 2D de globo ocular'],
+    nombre: 'Tracto Óptico / Globo Ocular',
+    infoText: 'Aferencia hacia cuerpo geniculado lateral a través del tracto óptico. Este relevo se integra en el procesamiento visual del campo visual opuesto.',
+    externalTargets: ['Tracto óptico', 'Globo ocular'],
     sourceDirection: [0.74, -0.06, -0.4],
     sourceDistanceMultiplier: 1.82,
   },
@@ -355,8 +347,8 @@ function extractMeshNameTokens(rawName: string): string[] {
 
 function formatPieceName(rawName: string): string {
   const tokens = extractMeshNameTokens(rawName)
-  const resolvedRegionKey = resolveKnowledgeKey(rawName, tokens)
-  const regionRaw = resolvedRegionKey || tokens[0] || 'unknown'
+  const resolvedRegiónKey = resolveKnowledgeKey(rawName, tokens)
+  const regionRaw = resolvedRegiónKey || tokens[0] || 'unknown'
   const hemisphere = rawName.toLowerCase().includes('lh')
     ? 'Hemisferio Izquierdo'
     : rawName.toLowerCase().includes('rh')
@@ -412,207 +404,207 @@ type ThalamusPieceMeta = {
 
 const PIECE_KNOWLEDGE_BASE: Record<string, PieceKnowledge> = {
   precentral: {
-    summary: 'Corteza motora primaria; participa en la ejecucion voluntaria del movimiento, especialmente en control contralateral.',
+    summary: 'Corteza motora primaria; participa en la ejecución voluntaria del movimiento, especialmente en control contralateral.',
     learningPoints: [
       'Integra planes motores provenientes de corteza premotora y suplementaria.',
-      'Su somatotopia ayuda a interpretar deficits motores focales.',
-      'En este proyecto suele aparecer dentro de circuitos talamicos ventrales.',
+      'Su somatotopía ayuda a interpretar déficits motores focales.',
+      'En este proyecto suele aparecer dentro de circuitos talámicos ventrales.',
     ],
   },
   postcentral: {
-    summary: 'Corteza somatosensorial primaria; releva tacto, propiocepcion y dolor hacia percepcion consciente.',
+    summary: 'Corteza somatosensorial primaria; releva tacto, propiocepción y dolor hacia percepción consciente.',
     learningPoints: [
-      'Recibe informacion talamica de VPM/VPL en representacion somatotopica.',
-      'Su organizacion en areas 3, 1 y 2 sustenta discriminacion sensitiva fina.',
-      'Lesiones pueden producir hipoestesia contralateral y perdida de discriminacion tactil.',
+      'Recibe información talámica de VPM/VPL en representación somatotopica.',
+      'Su organización en áreas 3, 1 y 2 sustenta discriminación sensitiva fina.',
+      'Lesiones pueden producir hipoestesia contralateral y pérdida de discriminación táctil.',
     ],
   },
   superiorfrontal: {
-    summary: 'Region frontal superior asociada a control ejecutivo, atencion sostenida y planificacion.',
+    summary: 'Región frontal superior asociada a control ejecutivo, atención sostenida y planificación.',
     learningPoints: [
       'Contribuye al control top-down de conducta y toma de decisiones.',
-      'Tiene interacciones funcionales con circuitos fronto-talamicos.',
+      'Tiene interacciones funcionales con circuitos fronto-talámicos.',
       'Relevante para tareas de memoria de trabajo y monitoreo cognitivo.',
     ],
   },
   rostralmiddlefrontal: {
     summary: 'Corteza prefrontal dorsolateral rostral, relacionada con control cognitivo y flexibilidad mental.',
     learningPoints: [
-      'Participa en memoria de trabajo y actualizacion de reglas.',
-      'Interviene en inhibicion de respuestas automaticas.',
+      'Participa en memoria de trabajo y actualización de reglas.',
+      'Interviene en inhibición de respuestas automáticas.',
       'Suele integrarse en redes ejecutivas frontoparietales.',
     ],
   },
   caudalmiddlefrontal: {
-    summary: 'Subregion prefrontal con papel en planificacion de accion y control atencional.',
+    summary: 'Subregion prefrontal con papel en planificación de acción y control atencional.',
     learningPoints: [
-      'Conecta funciones ejecutivas con seleccion de respuesta motora.',
-      'Importante para organizacion secuencial de acciones.',
-      'Puede participar en sintomas disejecutivos cuando se altera.',
+      'Conecta funciones ejecutivas con selección de respuesta motora.',
+      'Importante para organización secuencial de acciones.',
+      'Puede participar en síntomas disejecutivos cuando se altera.',
     ],
   },
   medialorbitofrontal: {
-    summary: 'Corteza orbitofrontal medial vinculada a valoracion emocional y toma de decisiones basada en recompensa.',
+    summary: 'Corteza orbitofrontal medial vinculada a valoración emocional y toma de decisiones basada en recompensa.',
     learningPoints: [
-      'Integra senales viscerales y afectivas para guiar elecciones.',
-      'Participa en regulacion socioemocional y aprendizaje por refuerzo.',
-      'Su alteracion puede afectar juicio y control impulsivo.',
+      'Integra señales viscerales y afectivas para guiar elecciones.',
+      'Participa en regulación socioemocional y aprendizaje por refuerzo.',
+      'Su alteración puede afectar juicio y control impulsivo.',
     ],
   },
   lateralorbitofrontal: {
-    summary: 'Corteza orbitofrontal lateral asociada con reevaluacion de conductas y aprendizaje por castigo.',
+    summary: 'Corteza orbitofrontal lateral asociada con reevaluación de conductas y aprendizaje por castigo.',
     learningPoints: [
       'Contribuye a ajustar decisiones cuando cambian contingencias.',
-      'Interviene en supresion de respuestas previamente recompensadas.',
-      'Relevante en control de impulsividad y adaptacion conductual.',
+      'Interviene en supresión de respuestas previamente recompensadas.',
+      'Relevante en control de impulsividad y adaptación conductual.',
     ],
   },
   parsopercularis: {
     summary: 'Componente frontal inferior con rol en lenguaje (hemisferio dominante) y control inhibitorio.',
     learningPoints: [
-      'Parte funcional del area de Broca en dominante.',
-      'Tambien participa en circuitos de control motor del habla.',
-      'Puede relacionarse con deficit de fluidez verbal si se lesiona.',
+      'Parte funcional del área de Broca en dominante.',
+      'También participa en circuitos de control motor del habla.',
+      'Puede relacionarse con déficit de fluidez verbal si se lesiona.',
     ],
   },
   parstriangularis: {
-    summary: 'Subregion frontal inferior implicada en seleccion semantica y produccion de lenguaje.',
+    summary: 'Subregion frontal inferior implicada en selección semántica y producción de lenguaje.',
     learningPoints: [
-      'Ayuda a recuperar y seleccionar contenido semantico.',
+      'Ayuda a recuperar y seleccionar contenido semántico.',
       'Colabora con regiones temporales del lenguaje.',
-      'Su afectacion puede modificar fluidez y organizacion verbal.',
+      'Su afectación puede modificar fluidez y organización verbal.',
     ],
   },
   parsorbitalis: {
-    summary: 'Region frontal inferior anterior vinculada a lenguaje, evaluacion social y procesamiento afectivo.',
+    summary: 'Región frontal inferior anterior vinculada a lenguaje, evaluación social y procesamiento afectivo.',
     learningPoints: [
-      'Integra informacion semantica y emocional.',
-      'Puede participar en evaluacion contextual de conducta social.',
-      'Aporta a redes frontolimbicas de control conductual.',
+      'Integra información semántica y emocional.',
+      'Puede participar en evaluación contextual de conducta social.',
+      'Aporta a redes frontolímbicas de control conductual.',
     ],
   },
   superiorparietal: {
-    summary: 'Corteza parietal superior asociada a integracion visoespacial y coordinacion sensorimotora.',
+    summary: 'Corteza parietal superior asociada a integración visoespacial y coordinacion sensorimotora.',
     learningPoints: [
-      'Contribuye al esquema corporal y orientacion espacial.',
-      'Importante para guiar movimientos dirigidos por vision.',
-      'Se integra con redes frontoparietales de atencion.',
+      'Contribuye al esquema corporal y orientación espacial.',
+      'Importante para guiar movimientos dirigidos por visión.',
+      'Se integra con redes frontoparietales de atención.',
     ],
   },
   inferiorparietal: {
-    summary: 'Corteza parietal inferior involucrada en atencion, lenguaje y funciones de integracion multisensorial.',
+    summary: 'Corteza parietal inferior involucrada en atención, lenguaje y funciones de integración multisensorial.',
     learningPoints: [
-      'Participa en conciencia espacial y orientacion atencional.',
-      'Puede influir en procesos de lectura y procesamiento simbolico.',
-      'Disfuncion puede asociarse a negligencia espacial.',
+      'Participa en conciencia espacial y orientación atencional.',
+      'Puede influir en procesos de lectura y procesamiento simbólico.',
+      'Disfunción puede asociarse a negligencia espacial.',
     ],
   },
   supramarginal: {
-    summary: 'Giro supramarginal relacionado con integracion fonologica, praxis y representacion corporal.',
+    summary: 'Giro supramarginal relacionado con integración fonológica, praxis y representación corporal.',
     learningPoints: [
-      'Contribuye a procesamiento fonologico del lenguaje.',
-      'Interviene en imitacion y planeacion de gestos.',
-      'Puede participar en sintomas de apraxia o alteraciones fonologicas.',
+      'Contribuye a procesamiento fonológico del lenguaje.',
+      'Interviene en imitación y planeación de gestos.',
+      'Puede participar en síntomas de apraxia o alteraciónes fonológicas.',
     ],
   },
   precuneus: {
-    summary: 'Region medial parietal clave para imagineria, orientacion espacial interna y redes de estado basal.',
+    summary: 'Región medial parietal clave para imaginería, orientación espacial interna y redes de estado basal.',
     learningPoints: [
-      'Participa en memoria autobiografica y autopercepcion.',
-      'Contribuye a integracion visoespacial de alto nivel.',
+      'Participa en memoria autobiográfica y autopercepción.',
+      'Contribuye a integración visoespacial de alto nivel.',
       'Nodo relevante de la red por defecto (default mode network).',
     ],
   },
   insula: {
-    summary: 'La insula integra interocepcion, emocion, dolor y percepcion de estados corporales internos.',
+    summary: 'La insula integra interocepción, emoción, dolor y percepción de estados corporales internos.',
     learningPoints: [
-      'Conecta senales viscerales con experiencia emocional consciente.',
+      'Conecta señales viscerales con experiencia emocional consciente.',
       'Participa en saliencia y cambio entre redes cognitivas.',
-      'Relevante en dolor, ansiedad y regulacion autonoma.',
+      'Relevante en dolor, ansiedad y regulación autónoma.',
     ],
   },
   parahippocampal: {
-    summary: 'Corteza parahipocampica asociada a memoria contextual y navegacion espacial.',
+    summary: 'Corteza parahipocámpica asociada a memoria contextual y navegación espacial.',
     learningPoints: [
-      'Interviene en codificacion de escenas y contexto ambiental.',
-      'Funciona en conjunto con hipocampo para memoria episodica.',
-      'Importante para reconocimiento espacial y orientacion.',
+      'Interviene en codificación de escenas y contexto ambiental.',
+      'Funcióna en conjunto con hipocampo para memoria episódica.',
+      'Importante para reconocimiento espacial y orientación.',
     ],
   },
   entorhinal: {
-    summary: 'Corteza entorrinal: puerta de entrada cortical al hipocampo para memoria y navegacion.',
+    summary: 'Corteza entorrinal: puerta de entrada cortical al hipocampo para memoria y navegación.',
     learningPoints: [
-      'Transmite informacion multimodal hacia circuitos hipocampicos.',
+      'Transmite información multimodal hacia circuitos hipocámpicos.',
       'Contiene representaciones espaciales (celdas de rejilla).',
-      'Es una region vulnerable en etapas tempranas de neurodegeneracion.',
+      'Es una region vulnerable en etapas tempranas de neurodegeneración.',
     ],
   },
   temporalpole: {
-    summary: 'Polo temporal involucrado en memoria semantica, emocion social e integracion auditivo-limbica.',
+    summary: 'Polo temporal involucrado en memoria semántica, emoción social e integración auditivo-limbica.',
     learningPoints: [
-      'Contribuye a representacion de conocimiento conceptual.',
+      'Contribuye a representación de conocimiento conceptual.',
       'Participa en procesamiento socioemocional.',
-      'Su conectividad lo vincula con redes limbicas y prefrontales.',
+      'Su conectividad lo vincula con redes límbicas y prefrontales.',
     ],
   },
   superiortemporal: {
-    summary: 'Giro temporal superior relacionado con audicion, lenguaje y analisis de senales sociales.',
+    summary: 'Giro temporal superior relacionado con audición, lenguaje y análisis de señales sociales.',
     learningPoints: [
       'Incluye cortezas auditivas asociativas.',
-      'En dominante, participa en comprension del lenguaje.',
-      'Se integra con vias auditivo-talamicas y temporo-frontales.',
+      'En dominante, participa en comprensión del lenguaje.',
+      'Se integra con vías auditivo-talámicas y temporo-frontales.',
     ],
   },
   middletemporal: {
-    summary: 'Giro temporal medio, implicado en semantica, percepcion visual de movimiento y memoria.',
+    summary: 'Giro temporal medio, implicado en semántica, percepción visual de movimiento y memoria.',
     learningPoints: [
-      'Contribuye a integracion audiovisual y significado semantico.',
-      'Participa en reconocimiento de patrones complejos.',
+      'Contribuye a integración audiovisual y significado semántico.',
+      'Participa en reconocimiento de patrónes complejos.',
       'Colabora con redes temporoparietales del lenguaje.',
     ],
   },
   inferiortemporal: {
     summary: 'Giro temporal inferior con papel en reconocimiento de objetos y procesamiento visual de alto nivel.',
     learningPoints: [
-      'Interviene en identificacion de formas complejas.',
-      'Aporta al reconocimiento visual semantico.',
-      'Trabaja en conjunto con vias ventrales occipitotemporales.',
+      'Interviene en identificación de formas complejas.',
+      'Aporta al reconocimiento visual semántico.',
+      'Trabaja en conjunto con vías ventrales occipitotemporales.',
     ],
   },
   transversetemporal: {
     summary: 'Giro temporal transverso (Heschl), sede principal de corteza auditiva primaria.',
     learningPoints: [
-      'Procesa caracteristicas tonotopicas basicas del sonido.',
-      'Recibe aferencias auditivas tempranas para analisis cortical inicial.',
-      'Base para procesamiento posterior del lenguaje y musica.',
+      'Procesa características tonotopicas básicas del sonido.',
+      'Recibe aferencias auditivas tempranas para análisis cortical inicial.',
+      'Base para procesamiento posterior del lenguaje y música.',
     ],
   },
   pericalcarine: {
     summary: 'Corteza pericalcarina correspondiente a corteza visual primaria (V1).',
     learningPoints: [
-      'Recibe informacion visual desde vias geniculo-calcarinas.',
-      'Mantiene representacion retinotopica del campo visual.',
-      'Esencial para deteccion visual elemental.',
+      'Recibe información visual desde vías geniculo-calcarinas.',
+      'Mantiene representación retinotopica del campo visual.',
+      'Esencial para detección visual elemental.',
     ],
   },
   lateraloccipital: {
-    summary: 'Region occipital lateral asociada a reconocimiento de objetos y forma visual.',
+    summary: 'Región occipital lateral asociada a reconocimiento de objetos y forma visual.',
     learningPoints: [
-      'Participa en analisis de contornos y categorias visuales.',
-      'Integra informacion de vias visuales ventrales.',
+      'Participa en análisis de contornos y categorías visuales.',
+      'Integra información de vías visuales ventrales.',
       'Contribuye a identificar objetos complejos.',
     ],
   },
   cuneus: {
-    summary: 'Region occipital medial vinculada a procesamiento visual basico y atencion visual.',
+    summary: 'Región occipital medial vinculada a procesamiento visual básico y atención visual.',
     learningPoints: [
-      'Participa en representacion de porciones del campo visual.',
-      'Contribuye a integracion visoespacial temprana.',
-      'Puede activarse en tareas de imaginacion visual.',
+      'Participa en representación de porciones del campo visual.',
+      'Contribuye a integración visoespacial temprana.',
+      'Puede activarse en tareas de imaginación visual.',
     ],
   },
   lingual: {
-    summary: 'Giro lingual implicado en procesamiento visual, color y analisis de patrones complejos.',
+    summary: 'Giro lingual implicado en procesamiento visual, color y análisis de patrónes complejos.',
     learningPoints: [
       'Contribuye a procesamiento visual de palabras y escenas.',
       'Participa en funciones visoperceptivas de alto nivel.',
@@ -620,23 +612,23 @@ const PIECE_KNOWLEDGE_BASE: Record<string, PieceKnowledge> = {
     ],
   },
   fusiform: {
-    summary: 'Giro fusiforme asociado a reconocimiento de caras, objetos y categorias visuales especializadas.',
+    summary: 'Giro fusiforme asociado a reconocimiento de caras, objetos y categorías visuales especializadas.',
     learningPoints: [
       'Incluye zonas para reconocimiento facial (hemisferio derecho predominante).',
-      'Contribuye al reconocimiento experto de patrones visuales.',
-      'Importante para vias ventrales de identificacion visual.',
+      'Contribuye al reconocimiento experto de patrónes visuales.',
+      'Importante para vías ventrales de identificación visual.',
     ],
   },
   rostralanteriorcingulate: {
-    summary: 'Cingulo anterior rostral vinculado a regulacion emocional, motivacion y monitoreo interno.',
+    summary: 'Cingulo anterior rostral vinculado a regulación emocional, motivación y monitoreo interno.',
     learningPoints: [
       'Integra componentes afectivos con control cognitivo.',
-      'Participa en evaluacion de conflicto y esfuerzo.',
-      'Conectado con redes limbicas y frontales mediales.',
+      'Participa en evaluación de conflicto y esfuerzo.',
+      'Conectado con redes límbicas y frontales mediales.',
     ],
   },
   caudalanteriorcingulate: {
-    summary: 'Cingulo anterior caudal con funcion en control cognitivo, dolor y seleccion de respuesta.',
+    summary: 'Cingulo anterior caudal con función en control cognitivo, dolor y selección de respuesta.',
     learningPoints: [
       'Ayuda a modular respuestas conductuales ante conflicto.',
       'Contribuye a componente motivacional del dolor.',
@@ -644,23 +636,23 @@ const PIECE_KNOWLEDGE_BASE: Record<string, PieceKnowledge> = {
     ],
   },
   posteriorcingulate: {
-    summary: 'Cingulo posterior, nodo central de la red por defecto y memoria autobiografica.',
+    summary: 'Cingulo posterior, nodo central de la red por defecto y memoria autobiográfica.',
     learningPoints: [
-      'Relacionada con orientacion interna y recuperacion mnestica.',
-      'Contribuye a integracion de contexto personal.',
-      'Participa en dinamica de atencion interna-externa.',
+      'Relacionada con orientación interna y recuperación mnésica.',
+      'Contribuye a integración de contexto personal.',
+      'Participa en dinámica de atención interna-externa.',
     ],
   },
   isthmuscingulate: {
-    summary: 'Istmo del cingulo que conecta cingulo posterior con regiones parahipocampicas.',
+    summary: 'Istmo del cíngulo que conecta cíngulo posterior con regiones parahipocámpicas.',
     learningPoints: [
       'Interfaz entre memoria contextual y redes cinguladas.',
-      'Contribuye a continuidad funcional de circuitos limbicos.',
-      'Relevante para integracion de informacion autobiografica.',
+      'Contribuye a continuidad funcional de circuitos límbicos.',
+      'Relevante para integración de información autobiográfica.',
     ],
   },
   paracentral: {
-    summary: 'Lobulo paracentral con representacion motora y sensitiva de miembros inferiores.',
+    summary: 'Lóbulo paracentral con representación motora y sensitiva de miembros inferiores.',
     learningPoints: [
       'Integra funciones motoras y somatosensoriales mediales.',
       'Clave en control de pierna y pie contralaterales.',
@@ -668,11 +660,11 @@ const PIECE_KNOWLEDGE_BASE: Record<string, PieceKnowledge> = {
     ],
   },
   bankssts: {
-    summary: 'Region de los bancos del surco temporal superior, implicada en percepcion social y audiovisual.',
+    summary: 'Región de los bancos del surco temporal superior, implicada en percepción social y audiovisual.',
     learningPoints: [
-      'Participa en procesamiento de voz, mirada y movimiento biologico.',
-      'Contribuye a integracion multisensorial temporal.',
-      'Se vincula con cognicion social y lenguaje prosodico.',
+      'Participa en procesamiento de voz, mirada y movimiento biológico.',
+      'Contribuye a integración multisensorial temporal.',
+      'Se vincula con cognición social y lenguaje prosódico.',
     ],
   },
 }
@@ -712,11 +704,11 @@ function buildAcademicPieceInfo(rawName: string): Pick<SelectedPieceInfo, 'infoT
   }
 
   return {
-    infoText: 'Pieza detectada en el modelo 3D. No pertenece a los circuitos talamicos mapeados en la tabla clinica actual, pero se conserva para estudio anatomico contextual.',
+    infoText: 'Pieza anatómica del modelo 3D usada como referencia de contexto para ubicar redes talamocorticales y su vecindad funcional.',
     learningPoints: [
-      'Utiliza esta pieza para relacionar vecindad anatomica con las estructuras del circuito talamico.',
-      'Aunque no tenga via mapeada en esta version, puede tener importancia funcional en redes corticales asociadas.',
-      'La clasificacion actual puede ampliarse en futuras iteraciones del mapa clinico.',
+      'Relaciona su ubicación con vías aferentes y eferentes para interpretar trayectos funcionales.',
+      'Evalúa su participación potencial en redes motoras, sensitivas o de asociación según su localización cortical.',
+      'Integra la pieza con estructuras adyacentes para comprender organización anatomo-funcional del circuito.',
     ],
   }
 }
@@ -800,7 +792,8 @@ export default function Scene({
       const nucleusLocal = targetNucleus?.posicionLocal ?? [0, 0, 0]
       const center = new Vector3(modelCenterWorld[0], modelCenterWorld[1], modelCenterWorld[2])
       const direction = new Vector3(spec.sourceDirection[0], spec.sourceDirection[1], spec.sourceDirection[2]).normalize()
-      const sourceDistance = Math.max(1.2, modelRadiusLocal * spec.sourceDistanceMultiplier)
+      // Shorten afferent placeholders to keep missing-organ indicators closer to the model.
+      const sourceDistance = Math.max(0.6, modelRadiusLocal * spec.sourceDistanceMultiplier * 0.5)
       const sourcePosition = center.clone().add(direction.multiplyScalar(sourceDistance))
 
       return {
@@ -812,7 +805,6 @@ export default function Scene({
         colorLinea: '#2563eb',
         infoText: spec.infoText,
         externalTargets: spec.externalTargets ?? [],
-        missingAssets: spec.missingAssets ?? [],
         pin: false,
         tipo: 'aferencia' as const,
       }
@@ -1081,15 +1073,12 @@ export default function Scene({
     pieceRadius?: number,
     pieceName?: string | null,
   ) => {
-    const hasApproxAnchor = connection.tipo === 'eferencia'
     onSelectConnection(connection)
     setActiveView(connection.id)
     onSelectedPieceInfoChange?.({
       name: pieceName ?? connection.nombre,
       tier: connection.tipo,
-      infoText: hasApproxAnchor
-        ? `${connection.infoText} Origen talamico mostrado de forma aproximada sobre el modelo para representar la via eferente.`
-        : connection.infoText,
+      infoText: connection.infoText,
     })
 
     if (!controlsRef.current) {
@@ -1408,9 +1397,36 @@ export default function Scene({
           const isVisibleByMode = isConnectionVisibleByMode(viewSettings.connectionVisibilityMode, connection.tipo)
           const isActive = selectedConnection?.id === connection.id
           const opacity = activeView && !isActive ? dimOpacity : 1
+          const afferentModelTarget = connection.tipo === 'aferencia'
+            ? getThalamusOriginForConnection(connection, connection.posicionDestino)
+            : null
           const lineEnd = connection.tipo === 'eferencia'
             ? getConnectionTargetForLine(connection)
+            : (afferentModelTarget ?? connection.posicionDestino)
+          const lineStart = connection.tipo === 'eferencia'
+            ? (
+              selectedConnection?.id === connection.id && selectedMeshCenter && isLikelyThalamicMesh(selectedMeshName || '')
+                ? selectedMeshCenter
+                : getThalamusOriginForConnection(connection, lineEnd)
+            )
             : connection.posicionDestino
+          const endpointRadius = Math.max(0.042, modelRadiusLocal * 0.014)
+          const endpointColor = connection.tipo === 'eferencia' ? '#f87171' : '#93c5fd'
+          const endpointEmissive = connection.tipo === 'eferencia' ? '#b91c1c' : '#2563eb'
+          const handleLineEndpointClick = (event: any) => {
+            event.stopPropagation()
+            if (connection.tipo === 'aferencia') {
+              handleSelectConnection(
+                connection,
+                lineEnd,
+                Math.max(modelRadiusLocal * 0.08, thalamusRadiusWorld * 0.22),
+                connection.nombre,
+              )
+              return
+            }
+            const world = pinsWorld[connection.id]
+            handleSelectConnection(connection, world ?? connection.posicionDestino)
+          }
 
           // For eferencias, use explicit mapped nodes or clinical map.
           const mapped = connection.tipo === 'eferencia'
@@ -1439,11 +1455,7 @@ export default function Scene({
 
               {isVisibleByMode && viewSettings.layers.showNerves && connection.tipo === 'eferencia' && (
                 <ConnectionLine
-                  start={
-                    selectedConnection?.id === connection.id && selectedMeshCenter && isLikelyThalamicMesh(selectedMeshName || '')
-                      ? selectedMeshCenter
-                      : getThalamusOriginForConnection(connection, lineEnd)
-                  }
+                  start={lineStart}
                   end={lineEnd}
                   anchorCenter={modelCenterWorld}
                   startSurfaceOffset={0}
@@ -1453,9 +1465,7 @@ export default function Scene({
                   isActive={isActive}
                   opacity={opacity}
                   onClick={(event) => {
-                    event.stopPropagation()
-                    const world = pinsWorld[connection.id]
-                    handleSelectConnection(connection, world ?? connection.posicionDestino)
+                    handleLineEndpointClick(event)
                   }}
                 />
               )}
@@ -1463,7 +1473,7 @@ export default function Scene({
               {isVisibleByMode && viewSettings.layers.showNerves && connection.tipo === 'aferencia' && (
                 <ConnectionLine
                   start={connection.posicionDestino}
-                  end={getThalamusOriginForConnection(connection, connection.posicionDestino)}
+                  end={lineEnd}
                   anchorCenter={modelCenterWorld}
                   startSurfaceOffset={0}
                   endSurfaceOffset={Math.max(0.01, modelRadiusLocal * 0.008)}
@@ -1472,10 +1482,53 @@ export default function Scene({
                   isActive={isActive}
                   opacity={opacity}
                   onClick={(event) => {
-                    event.stopPropagation()
-                    handleSelectConnection(connection, connection.posicionDestino, modelRadiusLocal * 0.08, connection.nombre)
+                    handleLineEndpointClick(event)
                   }}
                 />
+              )}
+
+              {isVisibleByMode && viewSettings.layers.showNerves && (
+                <mesh
+                  position={lineStart}
+                  onClick={handleLineEndpointClick}
+                  onPointerOver={() => {
+                    document.body.style.cursor = 'pointer'
+                  }}
+                  onPointerOut={() => {
+                    document.body.style.cursor = 'default'
+                  }}
+                >
+                  <sphereGeometry args={[endpointRadius, 20, 20]} />
+                  <meshStandardMaterial
+                    color={endpointColor}
+                    emissive={endpointEmissive}
+                    emissiveIntensity={1.15}
+                    depthTest={false}
+                    depthWrite={false}
+                  />
+                </mesh>
+              )}
+
+              {isVisibleByMode && viewSettings.layers.showNerves && (
+                <mesh
+                  position={lineEnd}
+                  onClick={handleLineEndpointClick}
+                  onPointerOver={() => {
+                    document.body.style.cursor = 'pointer'
+                  }}
+                  onPointerOut={() => {
+                    document.body.style.cursor = 'default'
+                  }}
+                >
+                  <sphereGeometry args={[endpointRadius, 20, 20]} />
+                  <meshStandardMaterial
+                    color={endpointColor}
+                    emissive={endpointEmissive}
+                    emissiveIntensity={1.15}
+                    depthTest={false}
+                    depthWrite={false}
+                  />
+                </mesh>
               )}
 
               {isVisibleByMode
@@ -1489,7 +1542,12 @@ export default function Scene({
                   emissive="#1d4ed8"
                   onClick={(event) => {
                     event.stopPropagation()
-                    handleSelectConnection(connection, connection.posicionDestino, modelRadiusLocal * 0.08, connection.nombre)
+                    handleSelectConnection(
+                      connection,
+                      lineEnd,
+                      Math.max(modelRadiusLocal * 0.08, thalamusRadiusWorld * 0.22),
+                      connection.nombre,
+                    )
                   }}
                 />
               )}
@@ -1526,8 +1584,8 @@ export default function Scene({
                     ?? (pinsWorld[connection.id] as [number, number, number] | undefined)
                     ?? toWorld(connection.posicionDestino)
                   }
-                  label="Conexiones No Modeladas"
-                  details={((connection as any).externalTargets as string[]).map((target) => `Relacionado con: ${target}`)}
+                  label="Estructuras Relacionadas"
+                  details={((connection as any).externalTargets as string[]).map((target) => `Conexion con: ${target}`)}
                 />
               )}
             </group>
@@ -1586,3 +1644,7 @@ export default function Scene({
     </div>
   )
 }
+
+
+
+
