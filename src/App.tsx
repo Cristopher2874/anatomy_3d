@@ -4,6 +4,7 @@ import Header from './components/Header'
 import Sidebar from './components/Sidebar'
 import Scene from './Scene'
 import ThalamusScene from './ThalamusScene'
+import type { ThalamusSelectionInfo } from './data/thalamusData'
 import type { ConnectionVisibilityMode, ConnectionWithType, ViewSettings } from './types/connections'
 import type { SelectedPieceInfo } from './types/pieceInfo'
 import './App.css'
@@ -52,6 +53,8 @@ function App() {
   // Brain scene selection state (kept isolated from thalamus scene)
   const [brainSelectedConnection, setBrainSelectedConnection] = useState<ConnectionWithType | null>(null)
   const [brainSelectedPieceInfo, setBrainSelectedPieceInfo] = useState<SelectedPieceInfo | null>(null)
+  const [thalamusSelectedInfo, setThalamusSelectedInfo] = useState<ThalamusSelectionInfo | null>(null)
+  const [thalamusClearSignal, setThalamusClearSignal] = useState(0)
 
   // Per-scene independent view states
   const [brainViewSettings, setBrainViewSettings] = useState<ViewSettings>(createDefaultViewSettings)
@@ -153,6 +156,7 @@ function App() {
             activeScene={activeScene}
             selectedConnection={activeScene === 'brain' ? brainSelectedConnection : null}
             selectedPieceInfo={activeScene === 'brain' ? brainSelectedPieceInfo : null}
+            selectedThalamusInfo={activeScene === 'thalamus' ? thalamusSelectedInfo : null}
             viewSettings={activeViewSettings}
             clippingRange={{ min: -activeBounds.halfHeight, max: activeBounds.halfHeight }}
             clippingRangeX={{ min: -activeBounds.halfWidth, max: activeBounds.halfWidth }}
@@ -214,9 +218,13 @@ function App() {
               }))
             }}
             onClearSelection={() => {
-              if (activeScene !== 'brain') return
-              setBrainSelectedConnection(null)
-              setBrainSelectedPieceInfo(null)
+              if (activeScene === 'brain') {
+                setBrainSelectedConnection(null)
+                setBrainSelectedPieceInfo(null)
+                return
+              }
+              setThalamusSelectedInfo(null)
+              setThalamusClearSignal((prev) => prev + 1)
             }}
           />
         </section>
@@ -257,6 +265,8 @@ function App() {
               <ThalamusScene
                 viewSettings={thalamusViewSettings}
                 clippingEnabled={thalamusBounds.initialized}
+                clearSelectionSignal={thalamusClearSignal}
+                onSelectedNucleusChange={setThalamusSelectedInfo}
                 onModelBoundsComputed={(bounds: { halfHeight: number; halfWidth: number }) => {
                   applyBoundsUpdate('thalamus', bounds)
                 }}

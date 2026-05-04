@@ -5,12 +5,14 @@ import type {
   ViewSettings,
   VisibilityLayers,
 } from '../types/connections'
+import type { ThalamusSelectionInfo } from '../data/thalamusData'
 import type { SelectedPieceInfo } from '../types/pieceInfo'
 
 type SidebarProps = {
   activeScene?: 'brain' | 'thalamus'
   selectedConnection: ConnectionWithType | null
   selectedPieceInfo?: SelectedPieceInfo | null
+  selectedThalamusInfo?: ThalamusSelectionInfo | null
   viewSettings: ViewSettings
   clippingRange?: { min: number; max: number }
   clippingRangeX?: { min: number; max: number }
@@ -29,6 +31,7 @@ export default function Sidebar({
   activeScene = 'brain',
   selectedConnection,
   selectedPieceInfo,
+  selectedThalamusInfo,
   viewSettings,
   clippingRange,
   clippingRangeX,
@@ -317,6 +320,66 @@ export default function Sidebar({
           </button>
 
           {shareMessage ? <p className="share-feedback">{shareMessage}</p> : null}
+
+          <button type="button" className="clear-button" onClick={onClearSelection}>
+            Limpiar selección
+          </button>
+        </>
+      ) : activeScene === 'thalamus' && selectedThalamusInfo ? (
+        <>
+          <h2>{selectedThalamusInfo.name}</h2>
+          <p className="connection-type">Núcleo talámico seleccionado</p>
+          <p>{selectedThalamusInfo.overview}</p>
+
+          <div className="tools-card" aria-label="Función principal del núcleo">
+            <h3>Función Principal</h3>
+            <p className="tool-caption">- {selectedThalamusInfo.functionCore}</p>
+          </div>
+
+          {selectedThalamusInfo.afferences.length > 0 || selectedThalamusInfo.efferences.length > 0 ? (
+            <>
+              <div className="tools-card" aria-label="Circuitos aferentes detallados">
+                <h3>Circuitos Aferentes</h3>
+                {selectedThalamusInfo.afferences.map((entry) => (
+                  <div key={`th-aff-${entry.label}`} style={{ marginBottom: '0.6rem' }}>
+                    <p className="tool-caption"><strong>{entry.label}:</strong> {entry.main}</p>
+                    <p className="tool-caption">- Vía: {entry.pathway}</p>
+                    <p className="tool-caption">- Rol funcional: {entry.functionRole}</p>
+                    <p className="tool-caption">- Estructuras: {entry.involvedStructures.join(', ')}</p>
+                    {entry.clinicalNote ? <p className="tool-caption">- Clínica: {entry.clinicalNote}</p> : null}
+                  </div>
+                ))}
+              </div>
+
+              <div className="tools-card" aria-label="Circuitos eferentes detallados">
+                <h3>Circuitos Eferentes</h3>
+                {selectedThalamusInfo.efferences.map((entry) => (
+                  <div key={`th-eff-${entry.label}`} style={{ marginBottom: '0.6rem' }}>
+                    <p className="tool-caption"><strong>{entry.label}:</strong> {entry.main}</p>
+                    <p className="tool-caption">- Vía: {entry.pathway}</p>
+                    <p className="tool-caption">- Rol funcional: {entry.functionRole}</p>
+                    <p className="tool-caption">- Estructuras: {entry.involvedStructures.join(', ')}</p>
+                    {entry.clinicalNote ? <p className="tool-caption">- Clínica: {entry.clinicalNote}</p> : null}
+                  </div>
+                ))}
+              </div>
+            </>
+          ) : (
+            <div className="tools-card" aria-label="Resumen de referencia anatómica">
+              <h3>Aprendizaje de Referencia</h3>
+              <p className="tool-caption">- Esta pieza no se usa como núcleo de circuito principal en esta vista.</p>
+              <p className="tool-caption">- Se presenta como guía anatómica para orientación espacial.</p>
+            </div>
+          )}
+
+          {selectedThalamusInfo.learningHighlights.length > 0 ? (
+            <div className="tools-card" aria-label="Puntos clave de aprendizaje">
+              <h3>Puntos Clave</h3>
+              {selectedThalamusInfo.learningHighlights.map((point) => (
+                <p key={point} className="tool-caption">- {point}</p>
+              ))}
+            </div>
+          ) : null}
 
           <button type="button" className="clear-button" onClick={onClearSelection}>
             Limpiar selección

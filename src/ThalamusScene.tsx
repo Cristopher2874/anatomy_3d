@@ -28,14 +28,18 @@ import {
   type CameraGoal,
   type QuickViewPreset,
 } from './utils/sceneUtils'
-import { THALAMUS_NUCLEI, MESH_NAME_TO_NUCLEUS_ID } from './data/thalamusData'
+import {
+  THALAMUS_NUCLEI,
+  MESH_NAME_TO_NUCLEUS_ID,
+  getThalamusSelectionInfoFromMesh,
+  type ThalamusSelectionInfo,
+} from './data/thalamusData'
 import type { ViewSettings } from './types/connections'
 import './Scene.css'
 
 const THALAMUS_MODEL_URL = '/models/talamus.glb'
 const PANEL_HALF_WIDTH_WORLD = 1.9
 const PANEL_ANCHOR_INSET_WORLD = 0.12
-const IMAGE_PLACEHOLDER_SRC = 'https://placehold.co/280x120/e2e8f0/1e293b?text=Referencia+2D'
 const PANEL_MIN_DISTANCE_X = 5.8
 const PANEL_DISTANCE_FACTOR_X = 0.62
 const PANEL_HEIGHT_FACTOR = 0.1
@@ -65,6 +69,8 @@ type ThalamusSceneProps = {
   viewSettings: ViewSettings
   clippingEnabled?: boolean
   onModelBoundsComputed?: (bounds: { halfHeight: number; halfWidth: number }) => void
+  onSelectedNucleusChange?: (info: ThalamusSelectionInfo | null) => void
+  clearSelectionSignal?: number
 }
 
 function CanvasPointerManagerComponent({ onPointerMissed }: { onPointerMissed: () => void }) {
@@ -251,6 +257,8 @@ export default function ThalamusScene({
   viewSettings,
   clippingEnabled = true,
   onModelBoundsComputed,
+  onSelectedNucleusChange,
+  clearSelectionSignal = 0,
 }: ThalamusSceneProps) {
   const controlsRef = useRef<OrbitControlsImpl | null>(null)
   const [controlsReady, setControlsReady] = useState(false)
@@ -496,12 +504,17 @@ export default function ThalamusScene({
     })
   }
 
-  const clearSelection = () => {
+  const clearSelection = useCallback(() => {
     setManualHighlighted(null)
     setActiveNucleus(null)
     setActiveNucleusCenter(null)
     setActiveNucleusRadius(null)
-  }
+    onSelectedNucleusChange?.(null)
+  }, [onSelectedNucleusChange])
+
+  useEffect(() => {
+    clearSelection()
+  }, [clearSelectionSignal, clearSelection])
 
   const panelDistanceX = Math.max(modelFrame.size[0] * PANEL_DISTANCE_FACTOR_X, PANEL_MIN_DISTANCE_X)
   const panelDistanceAdjusted = Math.max(
@@ -632,6 +645,7 @@ export default function ThalamusScene({
                   const nucleusKey = resolveNucleusKey(info.name)
                   setActiveNucleus(nucleusKey)
                   setManualHighlighted(info.name ? [info.name] : null)
+                  onSelectedNucleusChange?.(getThalamusSelectionInfoFromMesh(info.name ?? null))
 
                   const pieceCenter: [number, number, number] = [info.center[0], info.center[1], info.center[2]]
                   setActiveNucleusCenter(pieceCenter)
@@ -680,20 +694,12 @@ export default function ThalamusScene({
                     <h3 className="thalamus-panel-title">Aferencias</h3>
                     <p className="thalamus-panel-subtitle">{activeNucleusData.name}</p>
                     <article className="thalamus-panel-item">
-                      <p className="thalamus-panel-text">{item.text}</p>
-                      {item.whatToPoint && <p className="thalamus-panel-meta"><strong>{'Se\u00f1alar:'}</strong> {item.whatToPoint}</p>}
-                      {item.missing && <p className="thalamus-panel-meta"><strong>Falta:</strong> {item.missing}</p>}
-                      {item.requiresImage && (
-                        <img
-                          className="thalamus-panel-image"
-                          src={IMAGE_PLACEHOLDER_SRC}
-                          alt={`Referencia visual aferente ${idx + 1}`}
-                        />
-                      )}
-                      {item.imageConcept && <p className="thalamus-panel-meta">Concepto: {item.imageConcept}</p>}
+                      <p className="thalamus-panel-text"><strong>{item.label}</strong></p>
+                      <p className="thalamus-panel-meta">{item.main}</p>
+                      <p className="thalamus-panel-meta"><strong>Rol:</strong> {item.functionRole}</p>
                     </article>
                     <article className="thalamus-panel-item thalamus-panel-function">
-                      <p className="thalamus-panel-meta"><strong>{'Funci\u00f3n:'}</strong> {activeNucleusData.function}</p>
+                      <p className="thalamus-panel-meta"><strong>{'Funci\u00f3n:'}</strong> {activeNucleusData.functionCore}</p>
                     </article>
                   </section>
                 </Html>
@@ -708,20 +714,12 @@ export default function ThalamusScene({
                     <h3 className="thalamus-panel-title">Eferencias</h3>
                     <p className="thalamus-panel-subtitle">{activeNucleusData.name}</p>
                     <article className="thalamus-panel-item">
-                      <p className="thalamus-panel-text">{item.text}</p>
-                      {item.whatToPoint && <p className="thalamus-panel-meta"><strong>{'Se\u00f1alar:'}</strong> {item.whatToPoint}</p>}
-                      {item.missing && <p className="thalamus-panel-meta"><strong>Falta:</strong> {item.missing}</p>}
-                      {item.requiresImage && (
-                        <img
-                          className="thalamus-panel-image"
-                          src={IMAGE_PLACEHOLDER_SRC}
-                          alt={`Referencia visual eferente ${idx + 1}`}
-                        />
-                      )}
-                      {item.imageConcept && <p className="thalamus-panel-meta">Concepto: {item.imageConcept}</p>}
+                      <p className="thalamus-panel-text"><strong>{item.label}</strong></p>
+                      <p className="thalamus-panel-meta">{item.main}</p>
+                      <p className="thalamus-panel-meta"><strong>Rol:</strong> {item.functionRole}</p>
                     </article>
                     <article className="thalamus-panel-item thalamus-panel-function">
-                      <p className="thalamus-panel-meta"><strong>{'Funci\u00f3n:'}</strong> {activeNucleusData.function}</p>
+                      <p className="thalamus-panel-meta"><strong>{'Funci\u00f3n:'}</strong> {activeNucleusData.functionCore}</p>
                     </article>
                   </section>
                 </Html>
