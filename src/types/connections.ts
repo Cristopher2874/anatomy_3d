@@ -32,12 +32,13 @@ export type ConnectionsSchema = {
 export type VisibilityLayers = {
   showNerves: boolean
   showTargetOrgans: boolean
-  showGrid: boolean
-  showLabels: boolean
 }
+
+export type ConnectionVisibilityMode = 'both' | 'aferencia' | 'eferencia' | 'none'
 
 export type ViewSettings = {
   layers: VisibilityLayers
+  connectionVisibilityMode: ConnectionVisibilityMode
   clippingOffset: number
   clippingOffsetX?: number
   xrayMode: boolean

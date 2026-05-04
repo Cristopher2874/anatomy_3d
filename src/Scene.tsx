@@ -9,7 +9,6 @@ import { Canvas, useThree } from '@react-three/fiber'
 import {
   ContactShadows,
   Environment,
-  Grid,
   OrbitControls,
   type OrbitControlsProps,
 } from '@react-three/drei'
@@ -21,11 +20,16 @@ import ThalamusPlaceholder from './components/ThalamusPlaceholder'
 import ConnectionLine from './components/ConnectionLine'
 import ModelLoader, { CONNECTION_NODE_MAP } from './components/ModelLoader'
 import Pin from './components/Pin'
-import NodePin from './components/NodePin'
 import ExternalTargetIndicator from './components/ExternalTargetIndicator'
 import CameraControls from './components/CameraControls'
 import connectionsData from '../data/connections.json'
-import type { ConnectionWithType, ConnectionsSchema, Vec3, ViewSettings } from './types/connections'
+import type {
+  ConnectionVisibilityMode,
+  ConnectionWithType,
+  ConnectionsSchema,
+  Vec3,
+  ViewSettings,
+} from './types/connections'
 import type { SelectedPieceInfo } from './types/pieceInfo'
 import './Scene.css'
 
@@ -316,6 +320,12 @@ function canonicalNodeKey(value: string): string {
 function getNucleusIdForConnection(connection: ConnectionWithType): string {
   const nucleusId = (connection as any).nucleusId as string | undefined
   return nucleusId ?? connection.id
+}
+
+function isConnectionVisibleByMode(mode: ConnectionVisibilityMode, tipo: ConnectionWithType['tipo']) {
+  if (mode === 'none') return false
+  if (mode === 'both') return true
+  return mode === tipo
 }
 
 function isRightHemisphereName(value: string): boolean {
@@ -1327,22 +1337,6 @@ export default function Scene({
         <ambientLight intensity={0.5} />
         <directionalLight position={[5, 7, 3]} intensity={1.1} />
 
-        {viewSettings.layers.showGrid && (
-          <Grid
-            position={[0, -0.56, 0]}
-            args={[16, 16]}
-            cellSize={0.45}
-            cellThickness={0.55}
-            cellColor="#8ea7b7"
-            sectionSize={1.8}
-            sectionThickness={1.15}
-            sectionColor="#67829a"
-            fadeDistance={22}
-            fadeStrength={1.2}
-            infiniteGrid
-          />
-        )}
-
         <ContactShadows
           position={[0, -0.54, 0]}
           opacity={0.42}
@@ -1406,12 +1400,12 @@ export default function Scene({
               position={connections.nodoCentral.posicion}
               clippingPlanes={[clippingPlaneY, clippingPlaneX]}
               xrayMode={viewSettings.xrayMode}
-              showLabel={viewSettings.layers.showLabels}
             />
           }
         />
 
         {allConnections.map((connection) => {
+          const isVisibleByMode = isConnectionVisibleByMode(viewSettings.connectionVisibilityMode, connection.tipo)
           const isActive = selectedConnection?.id === connection.id
           const opacity = activeView && !isActive ? dimOpacity : 1
           const lineEnd = connection.tipo === 'eferencia'
@@ -1425,7 +1419,8 @@ export default function Scene({
 
           return (
             <group key={connection.id}>
-              {connection.pin && viewSettings.layers.showTargetOrgans && (() => {
+              {isVisibleByMode && connection.pin && viewSettings.layers.showTargetOrgans && (() => {
+                if (selectedConnection?.id !== connection.id) return null
                 // Use precomputed pin world positions when available
                 const worldPos = pinsWorld[connection.id]
                 const pos = worldPos ? new Vector3(worldPos[0], worldPos[1], worldPos[2]) : new Vector3(connection.posicionDestino[0], connection.posicionDestino[1], connection.posicionDestino[2])
@@ -1442,7 +1437,7 @@ export default function Scene({
                 )
               })()}
 
-              {viewSettings.layers.showNerves && connection.tipo === 'eferencia' && (
+              {isVisibleByMode && viewSettings.layers.showNerves && connection.tipo === 'eferencia' && (
                 <ConnectionLine
                   start={
                     selectedConnection?.id === connection.id && selectedMeshCenter && isLikelyThalamicMesh(selectedMeshName || '')
@@ -1465,7 +1460,7 @@ export default function Scene({
                 />
               )}
 
-              {viewSettings.layers.showNerves && connection.tipo === 'aferencia' && (
+              {isVisibleByMode && viewSettings.layers.showNerves && connection.tipo === 'aferencia' && (
                 <ConnectionLine
                   start={connection.posicionDestino}
                   end={getThalamusOriginForConnection(connection, connection.posicionDestino)}
@@ -1483,7 +1478,10 @@ export default function Scene({
                 />
               )}
 
-              {viewSettings.layers.showTargetOrgans && connection.tipo === 'aferencia' && (
+              {isVisibleByMode
+                && viewSettings.layers.showTargetOrgans
+                && selectedConnection?.id === connection.id
+                && connection.tipo === 'aferencia' && (
                 <Pin
                   position={connection.posicionDestino}
                   label={connection.nombre}
@@ -1496,12 +1494,17 @@ export default function Scene({
                 />
               )}
 
-              {viewSettings.layers.showTargetOrgans && connection.tipo === 'eferencia' && mapped && mapped.length > 0 && (
-                <NodePin
-                  nodeNames={mapped}
-                  modelCenter={modelCenterWorld}
-                  outwardOffset={Math.max(0.22, modelRadiusLocal * 0.06)}
-                  isActive={isActive}
+              {isVisibleByMode
+                && viewSettings.layers.showTargetOrgans
+                && selectedConnection?.id === connection.id
+                && connection.tipo === 'eferencia'
+                && mapped
+                && mapped.length > 0 && (
+                <Pin
+                  position={lineEnd}
+                  label={connection.nombre}
+                  color="#f87171"
+                  emissive="#991b1b"
                   onClick={(event) => {
                     event.stopPropagation()
                     const world = pinsWorld[connection.id]
@@ -1510,7 +1513,8 @@ export default function Scene({
                 />
               )}
 
-              {connection.tipo === 'eferencia'
+              {isVisibleByMode
+                && connection.tipo === 'eferencia'
                 && selectedConnection?.id === connection.id
                 && Array.isArray((connection as any).externalTargets)
                 && (connection as any).externalTargets.length > 0 && (

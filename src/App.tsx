@@ -3,9 +3,15 @@ import AboutProjectModal from './components/AboutProjectModal'
 import Header from './components/Header'
 import Sidebar from './components/Sidebar'
 import Scene from './Scene'
-import type { ConnectionWithType, ViewSettings } from './types/connections'
+import type { ConnectionVisibilityMode, ConnectionWithType, ViewSettings } from './types/connections'
 import type { SelectedPieceInfo } from './types/pieceInfo'
 import './App.css'
+
+function canShowConnectionType(mode: ConnectionVisibilityMode, tipo: ConnectionWithType['tipo']): boolean {
+  if (mode === 'none') return false
+  if (mode === 'both') return true
+  return mode === tipo
+}
 
 function App() {
   const [selectedConnection, setSelectedConnection] = useState<ConnectionWithType | null>(null)
@@ -15,9 +21,8 @@ function App() {
     layers: {
       showNerves: true,
       showTargetOrgans: true,
-      showGrid: true,
-      showLabels: true,
     },
+    connectionVisibilityMode: 'both',
     clippingOffset: 0,
     clippingOffsetX: 0,
     xrayMode: false,
@@ -62,6 +67,17 @@ function App() {
                 ...current,
                 clippingOffsetX: nextOffset,
               }))
+            }}
+            onChangeConnectionVisibilityMode={(nextMode) => {
+              setViewSettings((current) => ({
+                ...current,
+                connectionVisibilityMode: nextMode,
+              }))
+              setSelectedConnection((currentConnection) => {
+                if (!currentConnection) return null
+                return canShowConnectionType(nextMode, currentConnection.tipo) ? currentConnection : null
+              })
+              setSelectedPieceInfo((currentPieceInfo) => (currentPieceInfo?.tier === 'no_mapeada' ? currentPieceInfo : null))
             }}
             onToggleXray={() => {
               setViewSettings((current) => ({

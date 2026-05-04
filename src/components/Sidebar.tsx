@@ -1,5 +1,10 @@
 import { useEffect, useState } from 'react'
-import type { ConnectionWithType, ViewSettings, VisibilityLayers } from '../types/connections'
+import type {
+  ConnectionVisibilityMode,
+  ConnectionWithType,
+  ViewSettings,
+  VisibilityLayers,
+} from '../types/connections'
 import type { SelectedPieceInfo } from '../types/pieceInfo'
 
 type SidebarProps = {
@@ -11,6 +16,7 @@ type SidebarProps = {
   onToggleLayer: (layerKey: keyof VisibilityLayers) => void
   onChangeClipping: (nextOffset: number) => void
   onChangeClippingX?: (nextOffset: number) => void
+  onChangeConnectionVisibilityMode: (nextMode: ConnectionVisibilityMode) => void
   onToggleXray: () => void
   onClearSelection: () => void
 }
@@ -24,6 +30,7 @@ export default function Sidebar({
   onToggleLayer,
   onChangeClipping,
   onChangeClippingX,
+  onChangeConnectionVisibilityMode,
   onToggleXray,
   onClearSelection,
 }: SidebarProps) {
@@ -88,32 +95,30 @@ export default function Sidebar({
           <span>Nervios (Lineas)</span>
         </label>
 
+        <label className="connection-visibility-control">
+          <span>Mostrar conexiones</span>
+          <select
+            value={viewSettings.connectionVisibilityMode}
+            onChange={(event) => {
+              onChangeConnectionVisibilityMode(event.target.value as ConnectionVisibilityMode)
+            }}
+          >
+            <option value="both">Aferente y Eferente</option>
+            <option value="aferencia">Solo Aferente (Azul)</option>
+            <option value="eferencia">Solo Eferente (Rojo)</option>
+            <option value="none">Ninguna</option>
+          </select>
+        </label>
+
         <label className="layer-toggle">
           <input
             type="checkbox"
             checked={viewSettings.layers.showTargetOrgans}
             onChange={() => onToggleLayer('showTargetOrgans')}
           />
-          <span>Organos destino</span>
+          <span>Organo destino (seleccion)</span>
         </label>
 
-        <label className="layer-toggle">
-          <input
-            type="checkbox"
-            checked={viewSettings.layers.showGrid}
-            onChange={() => onToggleLayer('showGrid')}
-          />
-          <span>Grid de suelo</span>
-        </label>
-
-        <label className="layer-toggle">
-          <input
-            type="checkbox"
-            checked={viewSettings.layers.showLabels}
-            onChange={() => onToggleLayer('showLabels')}
-          />
-          <span>Etiquetas de texto</span>
-        </label>
       </section>
 
       <section className="tools-card" aria-label="Herramientas avanzadas">
