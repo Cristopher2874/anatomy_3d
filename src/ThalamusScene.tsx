@@ -1,19 +1,20 @@
-﻿import {
+import {
+  useCallback,
   useEffect,
   useRef,
   useState,
 } from 'react'
-import { Canvas, useFrame } from '@react-three/fiber'
+import { Canvas } from '@react-three/fiber'
 import {
   Center,
   Html,
-  QuadraticBezierLine,
+  Line,
   ContactShadows,
   Environment,
   OrbitControls,
   type OrbitControlsProps,
 } from '@react-three/drei'
-import { Box3, MOUSE, Vector3, Plane } from 'three'
+import { Box3, MOUSE, Vector3, Plane, Sphere } from 'three'
 import type { Material } from 'three'
 import type { OrbitControls as OrbitControlsImpl } from 'three-stdlib'
 import ModelLoader from './components/ModelLoader'
@@ -23,7 +24,6 @@ import {
   buildFocusGoal,
   CameraAnimator,
   useCanvasPointerManager,
-  useCameraInteractionClearing,
   getQuickViewGoal,
   type CameraGoal,
   type QuickViewPreset,
@@ -33,9 +33,19 @@ import type { ViewSettings } from './types/connections'
 import './Scene.css'
 
 const THALAMUS_MODEL_URL = '/models/talamus.glb'
-const FLOATING_PANEL_OFFSET_X = 6
-const FLOATING_PANEL_Y = 0.6
+const PANEL_HALF_WIDTH_WORLD = 1.9
+const PANEL_ANCHOR_INSET_WORLD = 0.12
 const IMAGE_PLACEHOLDER_SRC = 'https://placehold.co/280x120/e2e8f0/1e293b?text=Referencia+2D'
+const PANEL_MIN_DISTANCE_X = 5.8
+const PANEL_DISTANCE_FACTOR_X = 0.62
+const PANEL_HEIGHT_FACTOR = 0.1
+const PANEL_MIN_HEIGHT_OFFSET = 0.65
+const SELECTION_FOCUS_RADIUS_MULTIPLIER = 1.55
+const PANEL_GRID_ROW_GAP_Y = 12
+const PANEL_GRID_COL_GAP_X = 12
+const PANEL_GRID_ROWS = 2
+
+type Vec3Tuple = [number, number, number]
 
 const normalizeMeshName = (value: string) => value.toLowerCase().replace(/[^a-z0-9_]/g, '')
 
@@ -62,29 +72,37 @@ function CanvasPointerManagerComponent({ onPointerMissed }: { onPointerMissed: (
   return null
 }
 
-function CameraInteractionComponent({ 
-  controlsRef, 
-  onCameraInteraction 
-}: { 
-  controlsRef: React.RefObject<any>
-  onCameraInteraction: () => void 
-}) {
-  useCameraInteractionClearing(controlsRef, onCameraInteraction)
-  return null
-}
-
 function DiagramLines({
   modelGroup,
   activeNucleus,
+  activeNucleusCenter,
+  activeNucleusRadius,
+  hoverLabelPos,
+  affStartAnchors,
+  effStartAnchors,
+  affPinOffsets,
+  effPinOffsets,
 }: {
   modelGroup: any
   activeNucleus: string | null
+  activeNucleusCenter: Vec3Tuple | null
+  activeNucleusRadius: number | null
+  hoverLabelPos: Vec3Tuple | null
+  affStartAnchors: Vec3Tuple[]
+  effStartAnchors: Vec3Tuple[]
+  affPinOffsets: (Vec3Tuple | null)[]
+  effPinOffsets: (Vec3Tuple | null)[]
 }) {
-  const [centerPoint, setCenterPoint] = useState<[number, number, number] | null>(null)
-  const affLineRef = useRef<any>(null)
-  const effLineRef = useRef<any>(null)
+  const [centerPoint, setCenterPoint] = useState<Vec3Tuple | null>(null)
+  const [surfaceRadius, setSurfaceRadius] = useState(0.45)
 
   useEffect(() => {
+    if (activeNucleusCenter && activeNucleusRadius && activeNucleusRadius > 0.001) {
+      setCenterPoint(activeNucleusCenter)
+      setSurfaceRadius(activeNucleusRadius)
+      return
+    }
+
     if (!modelGroup || !activeNucleus) {
       setCenterPoint(null)
       return
@@ -104,64 +122,127 @@ function DiagramLines({
       return
     }
 
-    const center = new Box3().setFromObject(activeMesh).getCenter(new Vector3())
+    const box = new Box3().setFromObject(activeMesh)
+    const center = box.getCenter(new Vector3())
+    const sphere = box.getBoundingSphere(new Sphere())
+    const nextRadius = Math.max(0.15, sphere.radius)
     setCenterPoint([center.x, center.y, center.z])
-  }, [activeNucleus, modelGroup])
-
-  useFrame((_, delta) => {
-    ;[affLineRef.current, effLineRef.current].forEach((line, idx) => {
-      const material = line?.material
-      if (!material || typeof material.dashOffset !== 'number') return
-      const direction = idx === 0 ? -1 : 1
-      material.dashOffset += delta * direction * 0.55
-    })
-  })
+    setSurfaceRadius(nextRadius)
+  }, [activeNucleus, activeNucleusCenter, modelGroup])
 
   if (!activeNucleus || !centerPoint) return null
 
-  const leftStart: [number, number, number] = [-FLOATING_PANEL_OFFSET_X + 0.95, FLOATING_PANEL_Y, 0]
-  const rightStart: [number, number, number] = [FLOATING_PANEL_OFFSET_X - 0.95, FLOATING_PANEL_Y, 0]
+  const buildTopPins = (side: 'left' | 'right', count: number, offsets: (Vec3Tuple | null)[]) => {
+    const safeCount = Math.max(1, count)
+    const radius = Math.max(0.15, surfaceRadius)
+    const topSurfaceY = centerPoint[1] + radius * 0.92
+    const anchorY = hoverLabelPos ? Math.min(hoverLabelPos[1] - 0.12, topSurfaceY + 0.08) : topSurfaceY
+    const anchorX = hoverLabelPos ? hoverLabelPos[0] : centerPoint[0]
+    const anchorZ = hoverLabelPos ? hoverLabelPos[2] : centerPoint[2]
+    const sideBias = side === 'left' ? -1 : 1
 
-  const leftMid: [number, number, number] = [
-    (leftStart[0] + centerPoint[0]) / 2,
-    Math.max(leftStart[1], centerPoint[1]) + 1.15,
-    (leftStart[2] + centerPoint[2]) / 2,
-  ]
+    return Array.from({ length: safeCount }, (_, idx) => {
+      const custom = offsets[idx] ?? null
+      if (custom) {
+        const clampedX = Math.max(-radius * 0.44, Math.min(radius * 0.44, custom[0]))
+        const clampedY = Math.max(-0.04, Math.min(0.16, custom[1]))
+        const clampedZ = Math.max(-radius * 0.44, Math.min(radius * 0.44, custom[2]))
+        return [anchorX + clampedX, anchorY + clampedY, anchorZ + clampedZ] as Vec3Tuple
+      }
 
-  const rightMid: [number, number, number] = [
-    (rightStart[0] + centerPoint[0]) / 2,
-    Math.max(rightStart[1], centerPoint[1]) + 1.15,
-    (rightStart[2] + centerPoint[2]) / 2,
-  ]
+      const t = safeCount === 1 ? 0 : idx - (safeCount - 1) / 2
+      const xOffset = sideBias * (0.14 + Math.abs(t) * 0.06)
+      const zOffset = t * 0.11
+      // Keep pins on top band near label and away from lateral faces.
+      const clampedX = Math.max(-radius * 0.42, Math.min(radius * 0.42, xOffset))
+      const clampedZ = Math.max(-radius * 0.42, Math.min(radius * 0.42, zOffset))
+      return [
+        anchorX + clampedX,
+        anchorY + (idx % 2 === 0 ? 0.015 : -0.015),
+        anchorZ + clampedZ,
+      ] as Vec3Tuple
+    })
+  }
+
+  const affStarts = affStartAnchors.length > 0 ? affStartAnchors : [centerPoint]
+  const effStarts = effStartAnchors.length > 0 ? effStartAnchors : [centerPoint]
+  const affEnds = buildTopPins('left', affStarts.length, affPinOffsets)
+  const effEnds = buildTopPins('right', effStarts.length, effPinOffsets)
 
   return (
     <>
-      <QuadraticBezierLine
-        ref={affLineRef}
-        start={leftStart}
-        mid={leftMid}
-        end={centerPoint}
-        color="#2563eb"
-        lineWidth={1.8}
-        transparent
-        opacity={0.95}
-        dashed
-        dashScale={26}
-        gapSize={0.6}
-      />
-      <QuadraticBezierLine
-        ref={effLineRef}
-        start={rightStart}
-        mid={rightMid}
-        end={centerPoint}
-        color="#dc2626"
-        lineWidth={1.8}
-        transparent
-        opacity={0.95}
-        dashed
-        dashScale={26}
-        gapSize={0.6}
-      />
+      {affStarts.map((start, idx) => {
+        const pin = affEnds[idx] ?? centerPoint
+        const needleTop: [number, number, number] = [pin[0], pin[1] + 0.26, pin[2]]
+        const airRailY = Math.max(start[1], needleTop[1]) + 0.35 + idx * 0.02
+        const curveMid: [number, number, number] = [
+          (start[0] + needleTop[0]) / 2,
+          airRailY,
+          (start[2] + needleTop[2]) / 2,
+        ]
+        return (
+          <group key={`aff-line-${idx}`}>
+            <Line
+              points={[start, curveMid, needleTop]}
+              color="#2563eb"
+              lineWidth={2.2}
+              transparent={false}
+              opacity={1}
+              depthTest={false}
+              renderOrder={11}
+            />
+            <Line
+              points={[needleTop, pin]}
+              color="#2563eb"
+              lineWidth={2.8}
+              transparent={false}
+              opacity={1}
+              depthTest={false}
+              renderOrder={12}
+            />
+            <mesh position={pin} renderOrder={13}>
+              <sphereGeometry args={[0.052, 16, 16]} />
+              <meshBasicMaterial color="#2563eb" depthTest={false} />
+            </mesh>
+          </group>
+        )
+      })}
+      {effStarts.map((start, idx) => {
+        const pin = effEnds[idx] ?? centerPoint
+        const needleTop: [number, number, number] = [pin[0], pin[1] + 0.26, pin[2]]
+        const airRailY = Math.max(start[1], needleTop[1]) + 0.35 + idx * 0.02
+        const curveMid: [number, number, number] = [
+          (start[0] + needleTop[0]) / 2,
+          airRailY,
+          (start[2] + needleTop[2]) / 2,
+        ]
+        return (
+          <group key={`eff-line-${idx}`}>
+            <Line
+              points={[start, curveMid, needleTop]}
+              color="#dc2626"
+              lineWidth={2.2}
+              transparent={false}
+              opacity={1}
+              depthTest={false}
+              renderOrder={11}
+            />
+            <Line
+              points={[needleTop, pin]}
+              color="#dc2626"
+              lineWidth={2.8}
+              transparent={false}
+              opacity={1}
+              depthTest={false}
+              renderOrder={12}
+            />
+            <mesh position={pin} renderOrder={13}>
+              <sphereGeometry args={[0.052, 16, 16]} />
+              <meshBasicMaterial color="#dc2626" depthTest={false} />
+            </mesh>
+          </group>
+        )
+      })}
     </>
   )
 }
@@ -172,6 +253,7 @@ export default function ThalamusScene({
   onModelBoundsComputed,
 }: ThalamusSceneProps) {
   const controlsRef = useRef<OrbitControlsImpl | null>(null)
+  const [controlsReady, setControlsReady] = useState(false)
   const [modelGroup, setModelGroup] = useState<any>(null)
   const [cameraGoal, setCameraGoal] = useState<CameraGoal | null>(null)
   const [isAutoRotate, setIsAutoRotate] = useState(false)
@@ -179,22 +261,29 @@ export default function ThalamusScene({
   const [activeQuickView, setActiveQuickView] = useState<QuickViewPreset | null>(null)
   const [modelColor, setModelColor] = useState('#ced8e6')
   const [activeNucleus, setActiveNucleus] = useState<string | null>(null)
+  const [activeNucleusCenter, setActiveNucleusCenter] = useState<[number, number, number] | null>(null)
+  const [activeNucleusRadius, setActiveNucleusRadius] = useState<number | null>(null)
+  const [modelFrame, setModelFrame] = useState<{
+    center: [number, number, number]
+    size: [number, number, number]
+  }>({
+    center: [0, 0, 0],
+    size: [12, 12, 12],
+  })
   const activeNucleusData = activeNucleus ? THALAMUS_NUCLEI[activeNucleus] : null
+  const affCount = activeNucleusData?.afferences.length ?? 0
+  const effCount = activeNucleusData?.efferences.length ?? 0
 
-  const BASE_VIEW_CLOSER_FACTOR = 1.2
-  const HOME_VIEW_MULTIPLIER = 5 * BASE_VIEW_CLOSER_FACTOR
-  const QUICK_VIEW_MULTIPLIER = 2.35 * BASE_VIEW_CLOSER_FACTOR
+  const HOME_VIEW_MULTIPLIER = 1
+  const QUICK_VIEW_MULTIPLIER = 2
   const MIN_CAMERA_DISTANCE = 0.01
-  const controlsReadyRef = useRef(false)
   const initialPositionSetRef = useRef(false)
   const onModelBoundsComputedRef = useRef(onModelBoundsComputed)
 
-  // Update callback reference
   useEffect(() => {
     onModelBoundsComputedRef.current = onModelBoundsComputed
   }, [onModelBoundsComputed])
 
-  // Apply selected nucleus emphasis: selected mesh glows, others fade.
   useEffect(() => {
     if (!modelGroup) return
 
@@ -205,7 +294,8 @@ export default function ThalamusScene({
         ? (child.material as Material[])
         : [child.material as Material]
 
-      const isSelected = Boolean(activeNucleus) && child.name === activeNucleus
+      const nucleusKey = resolveNucleusKey(child.name || null)
+      const isSelected = Boolean(activeNucleus) && nucleusKey === activeNucleus
       const hasSelection = Boolean(activeNucleus)
 
       materials.forEach((material) => {
@@ -266,45 +356,46 @@ export default function ThalamusScene({
     })
   }, [activeNucleus, modelGroup, viewSettings.xrayMode])
 
-  const handleControlsRef = (instance: OrbitControlsImpl | null) => {
+  const handleControlsRef = useCallback((instance: OrbitControlsImpl | null) => {
     controlsRef.current = instance
-    const nextReady = Boolean(instance)
-    if (controlsReadyRef.current === nextReady) return
-    controlsReadyRef.current = nextReady
-  }
+    setControlsReady(Boolean(instance))
+  }, [])
 
-  // Clipping planes for cross-section analysis
   const clippingPlaneYMaxRef = useRef(new Plane(new Vector3(0, -1, 0), 0))
   const clippingPlaneYMinRef = useRef(new Plane(new Vector3(0, 1, 0), 0))
   const clippingPlaneXMaxRef = useRef(new Plane(new Vector3(-1, 0, 0), 0))
   const clippingPlaneXMinRef = useRef(new Plane(new Vector3(1, 0, 0), 0))
+  const clippingCenterRef = useRef<{ x: number; y: number }>({ x: 0, y: 0 })
 
   const clippingPlanes = clippingEnabled
-    ? [
-        clippingPlaneYMaxRef.current,
-        clippingPlaneYMinRef.current,
-        clippingPlaneXMaxRef.current,
-        clippingPlaneXMinRef.current,
-      ]
+    ? [clippingPlaneYMaxRef.current, clippingPlaneYMinRef.current, clippingPlaneXMaxRef.current, clippingPlaneXMinRef.current]
     : []
 
-  // Update clipping planes
-  if (clippingEnabled) {
-    clippingPlaneYMaxRef.current.constant = viewSettings.clippingYMax
-    clippingPlaneYMinRef.current.constant = -viewSettings.clippingYMin
-    clippingPlaneXMaxRef.current.constant = viewSettings.clippingXMax
-    clippingPlaneXMinRef.current.constant = -viewSettings.clippingXMin
-  }
+  useEffect(() => {
+    if (!clippingEnabled) return
+    const offsetX = clippingCenterRef.current.x
+    const offsetY = clippingCenterRef.current.y
+    clippingPlaneYMaxRef.current.constant = offsetY + viewSettings.clippingYMax
+    clippingPlaneYMinRef.current.constant = -(offsetY + viewSettings.clippingYMin)
+    clippingPlaneXMaxRef.current.constant = offsetX + viewSettings.clippingXMax
+    clippingPlaneXMinRef.current.constant = -(offsetX + viewSettings.clippingXMin)
+  }, [
+    clippingEnabled,
+    viewSettings.clippingYMax,
+    viewSettings.clippingYMin,
+    viewSettings.clippingXMax,
+    viewSettings.clippingXMin,
+  ])
 
-  // Apply home view
   const applyHomeView = (multiplier: number) => {
     const goal = getQuickViewGoal(modelGroup, 'isometric', multiplier)
     if (goal) {
       setCameraGoal(goal)
+      setActiveQuickView('isometric')
+      setIsAutoRotate(false)
     }
   }
 
-  // Apply quick view preset
   const applyQuickView = (view: QuickViewPreset) => {
     const goal = getQuickViewGoal(modelGroup, view, QUICK_VIEW_MULTIPLIER)
     if (goal) {
@@ -314,14 +405,51 @@ export default function ThalamusScene({
     }
   }
 
-  // Set initial camera position when model first loads
   useEffect(() => {
     if (initialPositionSetRef.current) return
-    if (!modelGroup || !controlsReadyRef.current) return
+    if (!modelGroup || !controlsReady) return
 
     applyHomeView(HOME_VIEW_MULTIPLIER)
     initialPositionSetRef.current = true
-  }, [modelGroup])
+  }, [modelGroup, controlsReady])
+
+  useEffect(() => {
+    if (!modelGroup) return
+
+    try {
+      modelGroup.updateMatrixWorld(true)
+      const box = new Box3().setFromObject(modelGroup)
+      const size = box.getSize(new Vector3())
+      const center = box.getCenter(new Vector3())
+      if (size.length() < 0.05) return
+
+      clippingCenterRef.current = { x: center.x, y: center.y }
+      setModelFrame({
+        center: [center.x, center.y, center.z],
+        size: [size.x, size.y, size.z],
+      })
+      const halfHeight = Math.max(0.001, size.y * 0.58)
+      const halfWidth = Math.max(0.001, size.x * 0.5)
+      onModelBoundsComputedRef.current?.({ halfHeight, halfWidth })
+
+      if (clippingEnabled) {
+        clippingPlaneYMaxRef.current.constant = center.y + viewSettings.clippingYMax
+        clippingPlaneYMinRef.current.constant = -(center.y + viewSettings.clippingYMin)
+        clippingPlaneXMaxRef.current.constant = center.x + viewSettings.clippingXMax
+        clippingPlaneXMinRef.current.constant = -(center.x + viewSettings.clippingXMin)
+      }
+    } catch (err) {
+      // ignore
+    }
+  }, [
+    clippingEnabled,
+    modelGroup,
+    viewSettings.explodeAmount,
+    viewSettings.clippingYMax,
+    viewSettings.clippingYMin,
+    viewSettings.clippingXMax,
+    viewSettings.clippingXMin,
+  ])
 
   const orbitControlsProps: OrbitControlsProps = {
     enableDamping: true,
@@ -336,7 +464,7 @@ export default function ThalamusScene({
     },
     autoRotate: isAutoRotate,
     autoRotateSpeed: 0.8,
-    makeDefault: true,
+    makeDefault: false,
   }
 
   const handleGoHome = () => {
@@ -347,9 +475,7 @@ export default function ThalamusScene({
   }
 
   const handleStepZoom = (factor: number) => {
-    if (!controlsRef.current) {
-      return
-    }
+    if (!controlsRef.current) return
 
     const controls = controlsRef.current
     const target = controls.target.clone()
@@ -373,7 +499,70 @@ export default function ThalamusScene({
   const clearSelection = () => {
     setManualHighlighted(null)
     setActiveNucleus(null)
+    setActiveNucleusCenter(null)
+    setActiveNucleusRadius(null)
   }
+
+  const panelDistanceX = Math.max(modelFrame.size[0] * PANEL_DISTANCE_FACTOR_X, PANEL_MIN_DISTANCE_X)
+  const panelDistanceAdjusted = Math.max(
+    4.9,
+    panelDistanceX + (Math.max(affCount, effCount) > 1 ? 0.6 : 0),
+  )
+  const panelY = modelFrame.center[1] + Math.max(modelFrame.size[1] * PANEL_HEIGHT_FACTOR, PANEL_MIN_HEIGHT_OFFSET)
+  const leftPanelPos: [number, number, number] = [modelFrame.center[0] - panelDistanceAdjusted, panelY, modelFrame.center[2]]
+  const rightPanelPos: [number, number, number] = [modelFrame.center[0] + panelDistanceAdjusted, panelY, modelFrame.center[2]]
+  const hoverLabelPos: [number, number, number] | null = activeNucleusCenter
+    ? [
+        activeNucleusCenter[0],
+        activeNucleusCenter[1] + Math.max(modelFrame.size[1] * 0.08, 0.35),
+        activeNucleusCenter[2],
+      ]
+    : null
+  const buildCardPositions = (base: Vec3Tuple, count: number, side: 'left' | 'right'): Vec3Tuple[] => {
+    const safeCount = Math.max(1, count)
+    const rows = safeCount > 1 ? Math.min(PANEL_GRID_ROWS, safeCount) : 1
+    const columns = Math.max(1, Math.ceil(safeCount / PANEL_GRID_ROWS))
+    const halfRows = (rows - 1) / 2
+    const stackHalfHeight = halfRows * PANEL_GRID_ROW_GAP_Y
+    const topLimit = modelFrame.center[1] + Math.max(modelFrame.size[1] * 0.42, 2.4)
+    const bottomLimit = modelFrame.center[1] - Math.max(modelFrame.size[1] * 0.42, 2.4)
+    const minCenter = bottomLimit + stackHalfHeight
+    const maxCenter = topLimit - stackHalfHeight
+    const centeredY = Math.max(minCenter, Math.min(maxCenter, base[1]))
+    const sideDir = side === 'left' ? -1 : 1
+    const columnOrigin = side === 'left'
+      ? columns - 1
+      : 0
+
+    return Array.from({ length: safeCount }, (_, idx) => {
+      const col = Math.floor(idx / PANEL_GRID_ROWS)
+      const row = idx % PANEL_GRID_ROWS
+      const rowT = row - halfRows
+      const outwardCol = side === 'left' ? columnOrigin - col : col
+      const colOffset = sideDir * outwardCol * PANEL_GRID_COL_GAP_X
+      return [
+        base[0] + colOffset,
+        centeredY - rowT * PANEL_GRID_ROW_GAP_Y,
+        base[2],
+      ]
+    })
+  }
+  const affCardPositions = buildCardPositions(leftPanelPos, affCount, 'left')
+  const effCardPositions = buildCardPositions(rightPanelPos, effCount, 'right')
+  const affCompact = affCount > 1
+  const effCompact = effCount > 1
+  const affStartAnchors = affCardPositions.map((pos) => [
+    pos[0] + PANEL_HALF_WIDTH_WORLD - PANEL_ANCHOR_INSET_WORLD,
+    pos[1],
+    pos[2],
+  ] as Vec3Tuple)
+  const effStartAnchors = effCardPositions.map((pos) => [
+    pos[0] - PANEL_HALF_WIDTH_WORLD + PANEL_ANCHOR_INSET_WORLD,
+    pos[1],
+    pos[2],
+  ] as Vec3Tuple)
+  const affPinOffsets = activeNucleusData?.afferences.map((item: any) => item.originOffset ?? null) ?? []
+  const effPinOffsets = activeNucleusData?.efferences.map((item: any) => item.originOffset ?? null) ?? []
 
   return (
     <div className="scene-shell">
@@ -399,25 +588,37 @@ export default function ThalamusScene({
           color="#4d5f70"
         />
 
-        <OrbitControls ref={handleControlsRef} {...orbitControlsProps} />
+        <OrbitControls
+          ref={handleControlsRef}
+          {...orbitControlsProps}
+          onStart={() => {
+            setCameraGoal(null)
+            setActiveQuickView(null)
+          }}
+        />
 
         <CameraAnimator
           controlsRef={controlsRef}
           goal={cameraGoal}
           onSettled={() => {
-            // Optional: call when animation settles
+            setCameraGoal(null)
           }}
         />
 
         <CanvasPointerManagerComponent onPointerMissed={clearSelection} />
 
-        <CameraInteractionComponent 
-          controlsRef={controlsRef}
-          onCameraInteraction={() => setCameraGoal(null)}
-        />
-
         <Center>
-          <DiagramLines modelGroup={modelGroup} activeNucleus={activeNucleus} />
+          <DiagramLines
+            modelGroup={modelGroup}
+            activeNucleus={activeNucleus}
+            activeNucleusCenter={activeNucleusCenter}
+            activeNucleusRadius={activeNucleusRadius}
+            hoverLabelPos={hoverLabelPos}
+            affStartAnchors={affStartAnchors}
+            effStartAnchors={effStartAnchors}
+            affPinOffsets={affPinOffsets}
+            effPinOffsets={effPinOffsets}
+          />
 
           <ModelLoader
             url={THALAMUS_MODEL_URL}
@@ -428,12 +629,18 @@ export default function ThalamusScene({
               if (!info) return
               try {
                 if (controlsRef.current) {
-                  const name = info.name
-                  setActiveNucleus(resolveNucleusKey(name))
-                  setManualHighlighted(name ? [name] : null)
+                  const nucleusKey = resolveNucleusKey(info.name)
+                  setActiveNucleus(nucleusKey)
+                  setManualHighlighted(info.name ? [info.name] : null)
 
                   const pieceCenter: [number, number, number] = [info.center[0], info.center[1], info.center[2]]
-                  setCameraGoal(buildFocusGoal(controlsRef.current, pieceCenter, info.radius))
+                  setActiveNucleusCenter(pieceCenter)
+                  setActiveNucleusRadius(info.radius ?? null)
+                  const focusRadius = Math.max(
+                    (info.radius ?? 0.25) * SELECTION_FOCUS_RADIUS_MULTIPLIER,
+                    info.radius ?? 0.25,
+                  )
+                  setCameraGoal(buildFocusGoal(controlsRef.current, pieceCenter, focusRadius))
                 }
               } catch (err) {
                 // ignore
@@ -456,13 +663,26 @@ export default function ThalamusScene({
 
           {activeNucleusData && (
             <>
-              <Html position={[-FLOATING_PANEL_OFFSET_X, FLOATING_PANEL_Y, 0]} transform distanceFactor={1.05}>
-                <section className="thalamus-floating-panel afference" aria-label="Aferencias">
-                  <h3 className="thalamus-panel-title">Aferencias</h3>
-                  <p className="thalamus-panel-subtitle">{activeNucleusData.name}</p>
-                  {activeNucleusData.afferences.map((item, idx) => (
-                    <article key={`aff-${idx}`} className="thalamus-panel-item">
+              {hoverLabelPos && (
+                <Html position={hoverLabelPos} center occlude={false}>
+                  <div className="thalamus-hover-tag" role="note">
+                    {activeNucleusData.name}
+                  </div>
+                </Html>
+              )}
+
+              {activeNucleusData.afferences.map((item, idx) => (
+                <Html key={`aff-card-${idx}`} position={affCardPositions[idx] ?? leftPanelPos} center occlude={false}>
+                  <section
+                    className={`thalamus-floating-panel thalamus-connection-card afference${affCompact ? ' compact' : ''}`}
+                    aria-label={`Aferencia ${idx + 1}`}
+                  >
+                    <h3 className="thalamus-panel-title">Aferencias</h3>
+                    <p className="thalamus-panel-subtitle">{activeNucleusData.name}</p>
+                    <article className="thalamus-panel-item">
                       <p className="thalamus-panel-text">{item.text}</p>
+                      {item.whatToPoint && <p className="thalamus-panel-meta"><strong>{'Se\u00f1alar:'}</strong> {item.whatToPoint}</p>}
+                      {item.missing && <p className="thalamus-panel-meta"><strong>Falta:</strong> {item.missing}</p>}
                       {item.requiresImage && (
                         <img
                           className="thalamus-panel-image"
@@ -471,19 +691,26 @@ export default function ThalamusScene({
                         />
                       )}
                       {item.imageConcept && <p className="thalamus-panel-meta">Concepto: {item.imageConcept}</p>}
-                      {item.pins && <p className="thalamus-panel-meta">Pins: {item.pins}</p>}
                     </article>
-                  ))}
-                </section>
-              </Html>
+                    <article className="thalamus-panel-item thalamus-panel-function">
+                      <p className="thalamus-panel-meta"><strong>{'Funci\u00f3n:'}</strong> {activeNucleusData.function}</p>
+                    </article>
+                  </section>
+                </Html>
+              ))}
 
-              <Html position={[FLOATING_PANEL_OFFSET_X, FLOATING_PANEL_Y, 0]} transform distanceFactor={1.05}>
-                <section className="thalamus-floating-panel efference" aria-label="Eferencias">
-                  <h3 className="thalamus-panel-title">Eferencias</h3>
-                  <p className="thalamus-panel-subtitle">{activeNucleusData.name}</p>
-                  {activeNucleusData.efferences.map((item, idx) => (
-                    <article key={`eff-${idx}`} className="thalamus-panel-item">
+              {activeNucleusData.efferences.map((item, idx) => (
+                <Html key={`eff-card-${idx}`} position={effCardPositions[idx] ?? rightPanelPos} center occlude={false}>
+                  <section
+                    className={`thalamus-floating-panel thalamus-connection-card efference${effCompact ? ' compact' : ''}`}
+                    aria-label={`Eferencia ${idx + 1}`}
+                  >
+                    <h3 className="thalamus-panel-title">Eferencias</h3>
+                    <p className="thalamus-panel-subtitle">{activeNucleusData.name}</p>
+                    <article className="thalamus-panel-item">
                       <p className="thalamus-panel-text">{item.text}</p>
+                      {item.whatToPoint && <p className="thalamus-panel-meta"><strong>{'Se\u00f1alar:'}</strong> {item.whatToPoint}</p>}
+                      {item.missing && <p className="thalamus-panel-meta"><strong>Falta:</strong> {item.missing}</p>}
                       {item.requiresImage && (
                         <img
                           className="thalamus-panel-image"
@@ -492,11 +719,13 @@ export default function ThalamusScene({
                         />
                       )}
                       {item.imageConcept && <p className="thalamus-panel-meta">Concepto: {item.imageConcept}</p>}
-                      {item.missingPiecesInfo && <p className="thalamus-panel-meta">Piezas: {item.missingPiecesInfo}</p>}
                     </article>
-                  ))}
-                </section>
-              </Html>
+                    <article className="thalamus-panel-item thalamus-panel-function">
+                      <p className="thalamus-panel-meta"><strong>{'Funci\u00f3n:'}</strong> {activeNucleusData.function}</p>
+                    </article>
+                  </section>
+                </Html>
+              ))}
             </>
           )}
         </Center>

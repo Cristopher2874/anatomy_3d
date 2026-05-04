@@ -160,30 +160,6 @@ function CanvasPointerManager({ onPointerMissed }: { onPointerMissed: () => void
   return null
 }
 
-function CameraInteractionClearer({ 
-  controlsRef, 
-  onUserInteraction 
-}: { 
-  controlsRef: RefObject<OrbitControlsImpl | null>
-  onUserInteraction: () => void 
-}) {
-  useEffect(() => {
-    const controls = controlsRef.current
-    if (!controls) return
-
-    const handleChange = () => {
-      onUserInteraction()
-    }
-
-    controls.addEventListener('change', handleChange)
-    return () => {
-      controls.removeEventListener('change', handleChange)
-    }
-  }, [controlsRef, onUserInteraction])
-
-  return null
-}
-
 type SceneProps = {
   selectedConnection: ConnectionWithType | null
   onSelectConnection: (connection: ConnectionWithType | null) => void
@@ -1683,12 +1659,6 @@ export default function Scene({
           // console.info('[Scene] pointer missed (DOM raycast)')
           clearSelection()
         }} />
-        
-        {/* Camera interaction clearer: stops animation when user manually moves camera */}
-        <CameraInteractionClearer 
-          controlsRef={controlsRef}
-          onUserInteraction={() => setCameraGoal(null)}
-        />
       </Canvas>
 
       <CameraControls

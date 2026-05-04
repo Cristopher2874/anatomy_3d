@@ -14,12 +14,16 @@ function canShowConnectionType(mode: ConnectionVisibilityMode, tipo: ConnectionW
   return mode === tipo
 }
 
-function App() {
-  const [activeScene, setActiveScene] = useState<'brain' | 'thalamus'>('brain')
-  const [selectedConnection, setSelectedConnection] = useState<ConnectionWithType | null>(null)
-  const [selectedPieceInfo, setSelectedPieceInfo] = useState<SelectedPieceInfo | null>(null)
-  const [isAboutOpen, setIsAboutOpen] = useState(false)
-  const [viewSettings, setViewSettings] = useState<ViewSettings>({
+type SceneKey = 'brain' | 'thalamus'
+
+type SceneBounds = {
+  halfHeight: number
+  halfWidth: number
+  initialized: boolean
+}
+
+function createDefaultViewSettings(): ViewSettings {
+  return {
     layers: {
       showNerves: true,
       showTargetOrgans: true,
@@ -31,11 +35,109 @@ function App() {
     clippingXMin: -999,
     clippingXMax: 999,
     xrayMode: false,
-  })
-  const [modelHalfHeight, setModelHalfHeight] = useState<number>(2.5)
-  const [modelHalfWidth, setModelHalfWidth] = useState<number>(2.5)
-  const [boundsInitialized, setBoundsInitialized] = useState(false)
+  }
+}
+
+function createDefaultBounds(): SceneBounds {
+  return {
+    halfHeight: 2.5,
+    halfWidth: 2.5,
+    initialized: false,
+  }
+}
+
+function App() {
+  const [activeScene, setActiveScene] = useState<SceneKey>('brain')
+
+  // Brain scene selection state (kept isolated from thalamus scene)
+  const [brainSelectedConnection, setBrainSelectedConnection] = useState<ConnectionWithType | null>(null)
+  const [brainSelectedPieceInfo, setBrainSelectedPieceInfo] = useState<SelectedPieceInfo | null>(null)
+
+  // Per-scene independent view states
+  const [brainViewSettings, setBrainViewSettings] = useState<ViewSettings>(createDefaultViewSettings)
+  const [thalamusViewSettings, setThalamusViewSettings] = useState<ViewSettings>(createDefaultViewSettings)
+
+  // Per-scene independent clipping bounds
+  const [brainBounds, setBrainBounds] = useState<SceneBounds>(createDefaultBounds)
+  const [thalamusBounds, setThalamusBounds] = useState<SceneBounds>(createDefaultBounds)
+
+  const [isAboutOpen, setIsAboutOpen] = useState(false)
   const BOUNDS_SYNC_EPSILON = 0.08
+
+  const activeViewSettings = activeScene === 'brain' ? brainViewSettings : thalamusViewSettings
+  const activeBounds = activeScene === 'brain' ? brainBounds : thalamusBounds
+
+  const updateActiveViewSettings = (updater: (current: ViewSettings) => ViewSettings) => {
+    if (activeScene === 'brain') {
+      setBrainViewSettings(updater)
+      return
+    }
+    setThalamusViewSettings(updater)
+  }
+
+  const applyBoundsUpdate = (
+    scene: SceneKey,
+    bounds: { halfHeight: number; halfWidth: number },
+  ) => {
+    const setBounds = scene === 'brain' ? setBrainBounds : setThalamusBounds
+    const setViewSettings = scene === 'brain' ? setBrainViewSettings : setThalamusViewSettings
+
+    setBounds((previousBounds) => {
+      setViewSettings((current) => {
+        if (!previousBounds.initialized) {
+          return {
+            ...current,
+            clippingYMin: -bounds.halfHeight,
+            clippingYMax: bounds.halfHeight,
+            clippingXMin: -bounds.halfWidth,
+            clippingXMax: bounds.halfWidth,
+          }
+        }
+
+        const yWasFull = Math.abs(current.clippingYMin + previousBounds.halfHeight) < BOUNDS_SYNC_EPSILON
+          && Math.abs(current.clippingYMax - previousBounds.halfHeight) < BOUNDS_SYNC_EPSILON
+        const xWasFull = Math.abs(current.clippingXMin + previousBounds.halfWidth) < BOUNDS_SYNC_EPSILON
+          && Math.abs(current.clippingXMax - previousBounds.halfWidth) < BOUNDS_SYNC_EPSILON
+
+        const clamp = (value: number, min: number, max: number) => Math.max(min, Math.min(max, value))
+
+        let nextYMin = yWasFull ? -bounds.halfHeight : clamp(current.clippingYMin, -bounds.halfHeight, bounds.halfHeight)
+        let nextYMax = yWasFull ? bounds.halfHeight : clamp(current.clippingYMax, -bounds.halfHeight, bounds.halfHeight)
+        if (nextYMin > nextYMax) {
+          nextYMin = nextYMax
+        }
+
+        let nextXMin = xWasFull ? -bounds.halfWidth : clamp(current.clippingXMin, -bounds.halfWidth, bounds.halfWidth)
+        let nextXMax = xWasFull ? bounds.halfWidth : clamp(current.clippingXMax, -bounds.halfWidth, bounds.halfWidth)
+        if (nextXMin > nextXMax) {
+          nextXMin = nextXMax
+        }
+
+        if (
+          nextYMin === current.clippingYMin
+          && nextYMax === current.clippingYMax
+          && nextXMin === current.clippingXMin
+          && nextXMax === current.clippingXMax
+        ) {
+          return current
+        }
+
+        return {
+          ...current,
+          clippingYMin: nextYMin,
+          clippingYMax: nextYMax,
+          clippingXMin: nextXMin,
+          clippingXMax: nextXMax,
+        }
+      })
+
+      return {
+        halfHeight: bounds.halfHeight,
+        halfWidth: bounds.halfWidth,
+        initialized: true,
+      }
+    })
+  }
 
   return (
     <div className="app-layout">
@@ -49,13 +151,13 @@ function App() {
         <section className="sidebar-panel">
           <Sidebar
             activeScene={activeScene}
-            selectedConnection={selectedConnection}
-            selectedPieceInfo={selectedPieceInfo}
-            viewSettings={viewSettings}
-            clippingRange={{ min: -modelHalfHeight, max: modelHalfHeight }}
-            clippingRangeX={{ min: -modelHalfWidth, max: modelHalfWidth }}
+            selectedConnection={activeScene === 'brain' ? brainSelectedConnection : null}
+            selectedPieceInfo={activeScene === 'brain' ? brainSelectedPieceInfo : null}
+            viewSettings={activeViewSettings}
+            clippingRange={{ min: -activeBounds.halfHeight, max: activeBounds.halfHeight }}
+            clippingRangeX={{ min: -activeBounds.halfWidth, max: activeBounds.halfWidth }}
             onToggleLayer={(layerKey) => {
-              setViewSettings((current) => ({
+              updateActiveViewSettings((current) => ({
                 ...current,
                 layers: {
                   ...current.layers,
@@ -64,55 +166,57 @@ function App() {
               }))
             }}
             onChangeClippingYMin={(nextValue) => {
-              setViewSettings((current) => ({
+              updateActiveViewSettings((current) => ({
                 ...current,
                 clippingYMin: Math.min(nextValue, current.clippingYMax),
               }))
             }}
             onChangeClippingYMax={(nextValue) => {
-              setViewSettings((current) => ({
+              updateActiveViewSettings((current) => ({
                 ...current,
                 clippingYMax: Math.max(nextValue, current.clippingYMin),
               }))
             }}
             onChangeClippingXMin={(nextValue) => {
-              setViewSettings((current) => ({
+              updateActiveViewSettings((current) => ({
                 ...current,
                 clippingXMin: Math.min(nextValue, current.clippingXMax),
               }))
             }}
             onChangeClippingXMax={(nextValue) => {
-              setViewSettings((current) => ({
+              updateActiveViewSettings((current) => ({
                 ...current,
                 clippingXMax: Math.max(nextValue, current.clippingXMin),
               }))
             }}
             onChangeExplodeAmount={(nextAmount) => {
-              setViewSettings((current) => ({
+              updateActiveViewSettings((current) => ({
                 ...current,
                 explodeAmount: Math.max(0, Math.min(1, nextAmount)),
               }))
             }}
             onChangeConnectionVisibilityMode={(nextMode) => {
-              setViewSettings((current) => ({
+              // Connection filtering is only relevant in brain scene.
+              setBrainViewSettings((current) => ({
                 ...current,
                 connectionVisibilityMode: nextMode,
               }))
-              setSelectedConnection((currentConnection) => {
+              setBrainSelectedConnection((currentConnection) => {
                 if (!currentConnection) return null
                 return canShowConnectionType(nextMode, currentConnection.tipo) ? currentConnection : null
               })
-              setSelectedPieceInfo((currentPieceInfo) => (currentPieceInfo?.tier === 'no_mapeada' ? currentPieceInfo : null))
+              setBrainSelectedPieceInfo((currentPieceInfo) => (currentPieceInfo?.tier === 'no_mapeada' ? currentPieceInfo : null))
             }}
             onToggleXray={() => {
-              setViewSettings((current) => ({
+              updateActiveViewSettings((current) => ({
                 ...current,
                 xrayMode: !current.xrayMode,
               }))
             }}
             onClearSelection={() => {
-              setSelectedConnection(null)
-              setSelectedPieceInfo(null)
+              if (activeScene !== 'brain') return
+              setBrainSelectedConnection(null)
+              setBrainSelectedPieceInfo(null)
             }}
           />
         </section>
@@ -136,72 +240,13 @@ function App() {
           {activeScene === 'brain' && (
             <div className="canvas-content">
               <Scene
-                selectedConnection={selectedConnection}
-                onSelectConnection={setSelectedConnection}
-                onSelectedPieceInfoChange={setSelectedPieceInfo}
-                viewSettings={viewSettings}
-                clippingEnabled={boundsInitialized}
+                selectedConnection={brainSelectedConnection}
+                onSelectConnection={setBrainSelectedConnection}
+                onSelectedPieceInfoChange={setBrainSelectedPieceInfo}
+                viewSettings={brainViewSettings}
+                clippingEnabled={brainBounds.initialized}
                 onModelBoundsComputed={(bounds: { halfHeight: number; halfWidth: number }) => {
-                  setModelHalfHeight((current) => (
-                    Math.abs(current - bounds.halfHeight) < 0.0001 ? current : bounds.halfHeight
-                  ))
-                  setModelHalfWidth((current) => (
-                    Math.abs(current - bounds.halfWidth) < 0.0001 ? current : bounds.halfWidth
-                  ))
-
-                  // Initialize clipping to full model bounds on first mount.
-                  if (!boundsInitialized) {
-                    setBoundsInitialized(true)
-                    setViewSettings((current) => ({
-                      ...current,
-                      clippingYMin: -bounds.halfHeight,
-                      clippingYMax: bounds.halfHeight,
-                      clippingXMin: -bounds.halfWidth,
-                      clippingXMax: bounds.halfWidth,
-                    }))
-                    return
-                  }
-
-                  // Keep clipping/explode consistent:
-                  // if user is currently at (or very near) full range, follow updated explode bounds.
-                  // otherwise only clamp to prevent invalid out-of-range values.
-                  setViewSettings((current) => {
-                    const yWasFull = Math.abs(current.clippingYMin + modelHalfHeight) < BOUNDS_SYNC_EPSILON
-                      && Math.abs(current.clippingYMax - modelHalfHeight) < BOUNDS_SYNC_EPSILON
-                    const xWasFull = Math.abs(current.clippingXMin + modelHalfWidth) < BOUNDS_SYNC_EPSILON
-                      && Math.abs(current.clippingXMax - modelHalfWidth) < BOUNDS_SYNC_EPSILON
-
-                    const clamp = (value: number, min: number, max: number) => Math.max(min, Math.min(max, value))
-
-                    let nextYMin = yWasFull ? -bounds.halfHeight : clamp(current.clippingYMin, -bounds.halfHeight, bounds.halfHeight)
-                    let nextYMax = yWasFull ? bounds.halfHeight : clamp(current.clippingYMax, -bounds.halfHeight, bounds.halfHeight)
-                    if (nextYMin > nextYMax) {
-                      nextYMin = nextYMax
-                    }
-
-                    let nextXMin = xWasFull ? -bounds.halfWidth : clamp(current.clippingXMin, -bounds.halfWidth, bounds.halfWidth)
-                    let nextXMax = xWasFull ? bounds.halfWidth : clamp(current.clippingXMax, -bounds.halfWidth, bounds.halfWidth)
-                    if (nextXMin > nextXMax) {
-                      nextXMin = nextXMax
-                    }
-
-                    if (
-                      nextYMin === current.clippingYMin
-                      && nextYMax === current.clippingYMax
-                      && nextXMin === current.clippingXMin
-                      && nextXMax === current.clippingXMax
-                    ) {
-                      return current
-                    }
-
-                    return {
-                      ...current,
-                      clippingYMin: nextYMin,
-                      clippingYMax: nextYMax,
-                      clippingXMin: nextXMin,
-                      clippingXMax: nextXMax,
-                    }
-                  })
+                  applyBoundsUpdate('brain', bounds)
                 }}
               />
             </div>
@@ -210,65 +255,10 @@ function App() {
           {activeScene === 'thalamus' && (
             <div className="canvas-content">
               <ThalamusScene
-                viewSettings={viewSettings}
-                clippingEnabled={boundsInitialized}
+                viewSettings={thalamusViewSettings}
+                clippingEnabled={thalamusBounds.initialized}
                 onModelBoundsComputed={(bounds: { halfHeight: number; halfWidth: number }) => {
-                  setModelHalfHeight((current) => (
-                    Math.abs(current - bounds.halfHeight) < 0.0001 ? current : bounds.halfHeight
-                  ))
-                  setModelHalfWidth((current) => (
-                    Math.abs(current - bounds.halfWidth) < 0.0001 ? current : bounds.halfWidth
-                  ))
-
-                  if (!boundsInitialized) {
-                    setBoundsInitialized(true)
-                    setViewSettings((current) => ({
-                      ...current,
-                      clippingYMin: -bounds.halfHeight,
-                      clippingYMax: bounds.halfHeight,
-                      clippingXMin: -bounds.halfWidth,
-                      clippingXMax: bounds.halfWidth,
-                    }))
-                    return
-                  }
-
-                  setViewSettings((current) => {
-                    const yWasFull = Math.abs(current.clippingYMin + modelHalfHeight) < BOUNDS_SYNC_EPSILON
-                      && Math.abs(current.clippingYMax - modelHalfHeight) < BOUNDS_SYNC_EPSILON
-                    const xWasFull = Math.abs(current.clippingXMin + modelHalfWidth) < BOUNDS_SYNC_EPSILON
-                      && Math.abs(current.clippingXMax - modelHalfWidth) < BOUNDS_SYNC_EPSILON
-
-                    const clamp = (value: number, min: number, max: number) => Math.max(min, Math.min(max, value))
-
-                    let nextYMin = yWasFull ? -bounds.halfHeight : clamp(current.clippingYMin, -bounds.halfHeight, bounds.halfHeight)
-                    let nextYMax = yWasFull ? bounds.halfHeight : clamp(current.clippingYMax, -bounds.halfHeight, bounds.halfHeight)
-                    if (nextYMin > nextYMax) {
-                      nextYMin = nextYMax
-                    }
-
-                    let nextXMin = xWasFull ? -bounds.halfWidth : clamp(current.clippingXMin, -bounds.halfWidth, bounds.halfWidth)
-                    let nextXMax = xWasFull ? bounds.halfWidth : clamp(current.clippingXMax, -bounds.halfWidth, bounds.halfWidth)
-                    if (nextXMin > nextXMax) {
-                      nextXMin = nextXMax
-                    }
-
-                    if (
-                      nextYMin === current.clippingYMin
-                      && nextYMax === current.clippingYMax
-                      && nextXMin === current.clippingXMin
-                      && nextXMax === current.clippingXMax
-                    ) {
-                      return current
-                    }
-
-                    return {
-                      ...current,
-                      clippingYMin: nextYMin,
-                      clippingYMax: nextYMax,
-                      clippingXMin: nextXMin,
-                      clippingXMax: nextXMax,
-                    }
-                  })
+                  applyBoundsUpdate('thalamus', bounds)
                 }}
               />
             </div>
