@@ -8,6 +8,7 @@ import type {
 import type { SelectedPieceInfo } from '../types/pieceInfo'
 
 type SidebarProps = {
+  activeScene?: 'brain' | 'thalamus'
   selectedConnection: ConnectionWithType | null
   selectedPieceInfo?: SelectedPieceInfo | null
   viewSettings: ViewSettings
@@ -25,6 +26,7 @@ type SidebarProps = {
 }
 
 export default function Sidebar({
+  activeScene = 'brain',
   selectedConnection,
   selectedPieceInfo,
   viewSettings,
@@ -130,20 +132,22 @@ export default function Sidebar({
           <span>Nervios (Líneas)</span>
         </label> */}
 
-        <label className="connection-visibility-control">
-          <span>Mostrar conexiones</span>
-          <select
-            value={viewSettings.connectionVisibilityMode}
-            onChange={(event) => {
-              onChangeConnectionVisibilityMode(event.target.value as ConnectionVisibilityMode)
-            }}
-          >
-            <option value="both">Aferente y Eferente</option>
-            <option value="aferencia">Solo Aferente (Azul)</option>
-            <option value="eferencia">Solo Eferente (Rojo)</option>
-            <option value="none">Ninguna</option>
-          </select>
-        </label>
+        {activeScene === 'brain' && (
+          <label className="connection-visibility-control">
+            <span>Mostrar conexiones</span>
+            <select
+              value={viewSettings.connectionVisibilityMode}
+              onChange={(event) => {
+                onChangeConnectionVisibilityMode(event.target.value as ConnectionVisibilityMode)
+              }}
+            >
+              <option value="both">Aferente y Eferente</option>
+              <option value="aferencia">Solo Aferente (Azul)</option>
+              <option value="eferencia">Solo Eferente (Rojo)</option>
+              <option value="none">Ninguna</option>
+            </select>
+          </label>
+        )}
 
         {/* <label className="layer-toggle">
           <input
