@@ -752,7 +752,9 @@ export default function Scene({
   const [activeView, setActiveView] = useState<string | null>(null)
   const [activeQuickView, setActiveQuickView] = useState<QuickViewPreset | null>(null)
   const [modelColor, setModelColor] = useState('#ced8e6')
-  const HOME_VIEW_MULTIPLIER = 3.8
+  const BASE_VIEW_CLOSER_FACTOR = 0.35
+  const HOME_VIEW_MULTIPLIER = 3.8 * BASE_VIEW_CLOSER_FACTOR
+  const QUICK_VIEW_MULTIPLIER = 2.35 * BASE_VIEW_CLOSER_FACTOR
   const [manualHighlighted, setManualHighlighted] = useState<string[] | null>(null)
   const [pinsWorld, setPinsWorld] = useState<Record<string, [number, number, number]>>({})
   const [modelCenterWorld, setModelCenterWorld] = useState<Vec3>([0, 0, 0])
@@ -884,7 +886,7 @@ export default function Scene({
   useEffect(() => {
     // debug: indicate modelGroup change
     // eslint-disable-next-line no-console
-    console.info('[Scene] modelGroup changed:', modelGroup)
+    // console.info('[Scene] modelGroup changed:', modelGroup)
     if (!modelGroup) return
     try {
       modelGroup.updateMatrixWorld(true)
@@ -1010,7 +1012,7 @@ export default function Scene({
 
       setPinsWorld(next)
       // eslint-disable-next-line no-console
-      console.info('[Scene] pinsWorld:', next)
+      // console.info('[Scene] pinsWorld:', next)
 
       // dev: dump node names once for mapping verification
       try {
@@ -1019,7 +1021,7 @@ export default function Scene({
           if (obj.name) names.push(obj.name)
         })
         // eslint-disable-next-line no-console
-        console.info('[Scene] Model node names:', names.slice(0, 400))
+        // console.info('[Scene] Model node names:', names.slice(0, 400))
       } catch (e) {
         // ignore
       }
@@ -1142,7 +1144,7 @@ export default function Scene({
       const cameraObject = controlsRef.current.object
       const fovDeg = 'fov' in cameraObject ? (cameraObject.fov as number) : 48
       const fovRad = MathUtils.degToRad(fovDeg)
-      const safeDistance = (sphere.radius / Math.sin(fovRad / 2)) * 2.35
+      const safeDistance = (sphere.radius / Math.sin(fovRad / 2)) * QUICK_VIEW_MULTIPLIER
 
       const directions: Record<QuickViewPreset, Vector3> = {
         isometric: new Vector3(1, 1, 1).normalize(),
@@ -1654,7 +1656,7 @@ export default function Scene({
         {/* DOM-based pointer handler: raycast on pointerdown to detect clicks in empty space */}
         <CanvasPointerManager onPointerMissed={() => {
           // eslint-disable-next-line no-console
-          console.info('[Scene] pointer missed (DOM raycast)')
+          // console.info('[Scene] pointer missed (DOM raycast)')
           clearSelection()
         }} />
       </Canvas>
