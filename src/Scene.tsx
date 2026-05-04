@@ -1,4 +1,5 @@
 ﻿import {
+  useCallback,
   useEffect,
   useMemo,
   useRef,
@@ -164,6 +165,7 @@ type SceneProps = {
   onSelectConnection: (connection: ConnectionWithType | null) => void
   onSelectedPieceInfoChange?: (pieceInfo: SelectedPieceInfo | null) => void
   viewSettings: ViewSettings
+  clippingEnabled?: boolean
   onModelBoundsComputed?: (bounds: { halfHeight: number; halfWidth: number }) => void
 }
 
@@ -738,6 +740,7 @@ export default function Scene({
   onSelectConnection,
   onSelectedPieceInfoChange,
   viewSettings,
+  clippingEnabled = true,
   onModelBoundsComputed,
 }: SceneProps) {
   const controlsRef = useRef<OrbitControlsImpl | null>(null)
@@ -761,19 +764,49 @@ export default function Scene({
   const [selectedMeshCenter, setSelectedMeshCenter] = useState<Vec3 | null>(null)
   const [selectedMeshName, setSelectedMeshName] = useState<string | null>(null)
   const MIN_CAMERA_DISTANCE = 0.01
+  const boundsComputedRef = useRef(false)
+  const controlsReadyRef = useRef(false)
 
-  // Clipping planes: Y (horizontal/top-bottom) and X (left-right)
-  const clippingPlaneY = useMemo(() => {
-    const plane = new Plane(new Vector3(0, 1, 0), 0)
-    plane.constant = -viewSettings.clippingOffset
-    return plane
-  }, [viewSettings.clippingOffset])
+  const handleControlsRef = useCallback((instance: OrbitControlsImpl | null) => {
+    controlsRef.current = instance
+    const nextReady = Boolean(instance)
+    if (controlsReadyRef.current === nextReady) return
+    controlsReadyRef.current = nextReady
+    setControlsReady(nextReady)
+  }, [])
 
-  const clippingPlaneX = useMemo(() => {
-    const plane = new Plane(new Vector3(1, 0, 0), 0)
-    plane.constant = -(viewSettings.clippingOffsetX ?? 0)
-    return plane
-  }, [viewSettings.clippingOffsetX])
+  // MRI-like slab clipping with min/max planes on Y and X.
+  const clippingPlaneYMaxRef = useRef(new Plane(new Vector3(0, -1, 0), 0))
+  const clippingPlaneYMinRef = useRef(new Plane(new Vector3(0, 1, 0), 0))
+  const clippingPlaneXMaxRef = useRef(new Plane(new Vector3(-1, 0, 0), 0))
+  const clippingPlaneXMinRef = useRef(new Plane(new Vector3(1, 0, 0), 0))
+  const clippingPlanes = useMemo(
+    () => (clippingEnabled
+      ? [
+        clippingPlaneYMaxRef.current,
+        clippingPlaneYMinRef.current,
+        clippingPlaneXMaxRef.current,
+        clippingPlaneXMinRef.current,
+      ]
+      : []),
+    [clippingEnabled],
+  )
+
+  useEffect(() => {
+    clippingPlaneYMaxRef.current.constant = viewSettings.clippingYMax
+  }, [viewSettings.clippingYMax])
+
+  useEffect(() => {
+    clippingPlaneYMinRef.current.constant = -viewSettings.clippingYMin
+  }, [viewSettings.clippingYMin])
+
+  useEffect(() => {
+    clippingPlaneXMaxRef.current.constant = viewSettings.clippingXMax
+  }, [viewSettings.clippingXMax])
+
+  useEffect(() => {
+    clippingPlaneXMinRef.current.constant = -viewSettings.clippingXMin
+  }, [viewSettings.clippingXMin])
 
   const eferentConnections = useMemo(
     () => connections.eferencias.map((item) => ({ ...item, tipo: 'eferencia' as const })),
@@ -818,7 +851,7 @@ export default function Scene({
 
   // Compute model bounds once the model group is available and notify parent for slider range.
   useEffect(() => {
-    if (!modelGroup) return
+    if (!modelGroup || boundsComputedRef.current) return
 
     try {
       // Ensure world matrices are up-to-date before computing bounds
@@ -826,6 +859,10 @@ export default function Scene({
 
       const box = new Box3().setFromObject(modelGroup)
       const size = box.getSize(new Vector3())
+      // Skip early empty/incomplete bounds so clip ranges are not initialized to near-zero.
+      if (size.length() < 0.25) {
+        return
+      }
       const sphere = box.getBoundingSphere(new Sphere())
       const center = box.getCenter(new Vector3())
       // report half height and half width for clipping sliders
@@ -834,6 +871,7 @@ export default function Scene({
       setModelRadiusLocal(Math.max(0.001, sphere.radius))
       setModelCenterWorld([center.x, center.y, center.z])
       onModelBoundsComputed?.({ halfHeight, halfWidth })
+      boundsComputedRef.current = true
     } catch (err) {
       // ignore
     }
@@ -985,7 +1023,7 @@ export default function Scene({
     } catch (err) {
       // ignore
     }
-  }, [modelGroup, allConnections, modelCenterWorld, modelRadiusLocal])
+  }, [modelGroup, allConnections, modelCenterWorld, modelRadiusLocal, viewSettings.explodeAmount])
 
   // Build a reverse map from node name (lowercased) -> connection id for quick lookup on mesh click
   const nodeNameToConnection = useMemo(() => {
@@ -1340,6 +1378,7 @@ export default function Scene({
           url={THALAMUS_MODEL_URL}
           ref={setModelGroup}
           modelColor={modelColor}
+          explodeAmount={viewSettings.explodeAmount}
           onMeshClick={(info) => {
             if (!info) return
             try {
@@ -1382,12 +1421,12 @@ export default function Scene({
               : manualHighlighted
           }
           highlightColor={activeHighlightColor}
-          clippingPlanes={[clippingPlaneY, clippingPlaneX]}
+          clippingPlanes={clippingPlanes}
           xrayMode={viewSettings.xrayMode}
           fallback={
             <ThalamusPlaceholder
               position={connections.nodoCentral.posicion}
-              clippingPlanes={[clippingPlaneY, clippingPlaneX]}
+              clippingPlanes={clippingPlanes}
               xrayMode={viewSettings.xrayMode}
             />
           }
@@ -1593,10 +1632,7 @@ export default function Scene({
         })}
 
         <OrbitControls
-          ref={(instance) => {
-            controlsRef.current = instance
-            setControlsReady(Boolean(instance))
-          }}
+          ref={handleControlsRef}
           {...orbitControlsProps}
           minDistance={MIN_CAMERA_DISTANCE}
           maxDistance={Math.max(Math.max(0.05, modelRadiusLocal * 0.5) + 0.1, modelRadiusLocal * 5)}
@@ -1644,6 +1680,9 @@ export default function Scene({
     </div>
   )
 }
+
+
+
 
 
 

@@ -39,7 +39,10 @@ export type ConnectionVisibilityMode = 'both' | 'aferencia' | 'eferencia' | 'non
 export type ViewSettings = {
   layers: VisibilityLayers
   connectionVisibilityMode: ConnectionVisibilityMode
-  clippingOffset: number
-  clippingOffsetX?: number
+  explodeAmount: number
+  clippingYMin: number
+  clippingYMax: number
+  clippingXMin: number
+  clippingXMax: number
   xrayMode: boolean
 }

@@ -23,8 +23,11 @@ function App() {
       showTargetOrgans: true,
     },
     connectionVisibilityMode: 'both',
-    clippingOffset: 0,
-    clippingOffsetX: 0,
+    explodeAmount: 0,
+    clippingYMin: -999,
+    clippingYMax: 999,
+    clippingXMin: -999,
+    clippingXMax: 999,
     xrayMode: false,
   })
   const [modelHalfHeight, setModelHalfHeight] = useState<number>(2.5)
@@ -56,16 +59,34 @@ function App() {
                 },
               }))
             }}
-            onChangeClipping={(nextOffset) => {
+            onChangeClippingYMin={(nextValue) => {
               setViewSettings((current) => ({
                 ...current,
-                clippingOffset: nextOffset,
+                clippingYMin: Math.min(nextValue, current.clippingYMax),
               }))
             }}
-            onChangeClippingX={(nextOffset) => {
+            onChangeClippingYMax={(nextValue) => {
               setViewSettings((current) => ({
                 ...current,
-                clippingOffsetX: nextOffset,
+                clippingYMax: Math.max(nextValue, current.clippingYMin),
+              }))
+            }}
+            onChangeClippingXMin={(nextValue) => {
+              setViewSettings((current) => ({
+                ...current,
+                clippingXMin: Math.min(nextValue, current.clippingXMax),
+              }))
+            }}
+            onChangeClippingXMax={(nextValue) => {
+              setViewSettings((current) => ({
+                ...current,
+                clippingXMax: Math.max(nextValue, current.clippingXMin),
+              }))
+            }}
+            onChangeExplodeAmount={(nextAmount) => {
+              setViewSettings((current) => ({
+                ...current,
+                explodeAmount: Math.max(0, Math.min(1, nextAmount)),
               }))
             }}
             onChangeConnectionVisibilityMode={(nextMode) => {
@@ -98,6 +119,7 @@ function App() {
             onSelectConnection={setSelectedConnection}
             onSelectedPieceInfoChange={setSelectedPieceInfo}
             viewSettings={viewSettings}
+            clippingEnabled={boundsInitialized}
             onModelBoundsComputed={(bounds: { halfHeight: number; halfWidth: number }) => {
               setModelHalfHeight(bounds.halfHeight)
               setModelHalfWidth(bounds.halfWidth)
@@ -106,8 +128,11 @@ function App() {
                 setBoundsInitialized(true)
                 setViewSettings((current) => ({
                   ...current,
-                  clippingOffset: Math.max(-bounds.halfHeight * 0.25, -bounds.halfHeight),
-                  clippingOffsetX: Math.max(-bounds.halfWidth * 0.25, -bounds.halfWidth),
+                  // Default: full model visible. Slab clipping is user-controlled.
+                  clippingYMin: -bounds.halfHeight,
+                  clippingYMax: bounds.halfHeight,
+                  clippingXMin: -bounds.halfWidth,
+                  clippingXMax: bounds.halfWidth,
                 }))
               }
             }}

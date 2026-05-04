@@ -2,7 +2,18 @@ import { Component, Suspense, forwardRef, useEffect, useMemo, type ReactNode } f
 import { useLoader } from '@react-three/fiber'
 import type { ThreeEvent } from '@react-three/fiber'
 import type { ThreeElements } from '@react-three/fiber'
-import { Color, Mesh, MeshStandardMaterial, MeshPhysicalMaterial, type Material, type Object3D, type Plane, Box3, Sphere, Vector3 } from 'three'
+import {
+  Box3,
+  Color,
+  Mesh,
+  MeshPhysicalMaterial,
+  MeshStandardMaterial,
+  Sphere,
+  Vector3,
+  type Material,
+  type Object3D,
+  type Plane,
+} from 'three'
 import { clone } from 'three/examples/jsm/utils/SkeletonUtils.js'
 import { GLTFLoader } from 'three/examples/jsm/loaders/GLTFLoader.js'
 import { DRACOLoader } from 'three/examples/jsm/loaders/DRACOLoader.js'
@@ -19,6 +30,7 @@ type ModelLoaderProps = ThreeElements['group'] & {
   highlightedNodeNames?: string[] | null
   highlightColor?: string
   modelColor?: string
+  explodeAmount?: number
   clippingPlanes?: Plane[]
   xrayMode?: boolean
   onMeshClick?: (info: MeshClickInfo) => void
@@ -27,6 +39,10 @@ type ModelLoaderProps = ThreeElements['group'] & {
 
 type ModelRootProps = Omit<ModelLoaderProps, 'fallback'> & {
   url: string
+}
+
+type PreparedScene = {
+  meshes: Mesh[]
 }
 
 class ModelLoadBoundary extends Component<{ fallback: ReactNode; children: ReactNode }, { hasError: boolean }> {
@@ -153,6 +169,7 @@ const ModelRoot = forwardRef<any, ModelRootProps>(function ModelRoot({
   highlightedNodeNames,
   highlightColor = '#ff5a5f',
   modelColor = '#ced8e6',
+  explodeAmount = 0,
   clippingPlanes,
   xrayMode = false,
   onClick,
@@ -195,12 +212,15 @@ const ModelRoot = forwardRef<any, ModelRootProps>(function ModelRoot({
   const scene = gltf.scene
   const clonedScene = useMemo(() => clone(scene), [scene])
 
-  useEffect(() => {
-    // First apply hierarchical material injection: try to detect 'corteza' (cortex) and 'tálamo' (thalamus)
+  const preparedScene = useMemo<PreparedScene>(() => {
+    const meshes: Mesh[] = []
+
+    // Apply one-time per-clone setup and collect direct references for fast incremental updates.
     clonedScene.traverse((obj) => {
       if (!(obj instanceof Mesh)) return
+      meshes.push(obj)
 
-      // Ensure each mesh has its own material instance to avoid shared-material side-effects
+      // Ensure each mesh has its own material instance to avoid shared-material side-effects.
       if (Array.isArray(obj.material)) {
         obj.material = obj.material.map((m) => (m && typeof (m as any).clone === 'function' ? (m as any).clone() : m)) as any
       } else if (obj.material && typeof (obj.material as any).clone === 'function') {
@@ -213,13 +233,12 @@ const ModelRoot = forwardRef<any, ModelRootProps>(function ModelRoot({
       const isThalamus = lname.includes('talamo') || lname.includes('thalamus') || lname.includes('talamus')
 
       if (isCortex) {
-        // Preserve original material reference for potential restoration/highlight
         if (!obj.userData.__originalMaterial) obj.userData.__originalMaterial = obj.material
 
         const baseMat = Array.isArray(obj.material) ? obj.material[0] : obj.material
         const baseColor = baseMat && (baseMat as any).color ? (baseMat as any).color.getHex() : 0xffffff
 
-        const phys = new MeshPhysicalMaterial({
+        obj.material = new MeshPhysicalMaterial({
           color: baseColor,
           transmission: 0.6,
           transparent: true,
@@ -228,9 +247,6 @@ const ModelRoot = forwardRef<any, ModelRootProps>(function ModelRoot({
           metalness: 0,
           clearcoat: 0.05,
         })
-
-        obj.material = phys
-        return
       }
 
       if (isThalamus) {
@@ -243,60 +259,115 @@ const ModelRoot = forwardRef<any, ModelRootProps>(function ModelRoot({
           }
         })
       }
+
+      if (!(obj.userData.__originalPosition instanceof Vector3)) {
+        obj.userData.__originalPosition = obj.position.clone()
+      }
     })
 
-    // debug: report scene node count
-    try {
-      // eslint-disable-next-line no-console
-      console.info('[ModelLoader] clonedScene children:', clonedScene.children.length)
-    } catch (e) {
-      // ignore
+    return { meshes }
+  }, [clonedScene])
+
+  useEffect(() => {
+    applyNodeHighlight(clonedScene, highlightedNodeNames, highlightColor)
+  }, [clonedScene, highlightedNodeNames, highlightColor])
+
+  useEffect(() => {
+    // Spherical exploded view: move each mesh away from model center while preserving identities for raycast.
+    const clampedExplode = Math.max(0, Math.min(1, explodeAmount))
+    preparedScene.meshes.forEach((mesh) => {
+      const original = mesh.userData.__originalPosition as Vector3 | undefined
+      if (original) mesh.position.copy(original)
+    })
+
+    if (clampedExplode <= 0.0001) {
+      return
     }
 
-    applyNodeHighlight(clonedScene, highlightedNodeNames, highlightColor)
+    clonedScene.updateMatrixWorld(true)
+    const modelSphere = new Box3().setFromObject(clonedScene).getBoundingSphere(new Sphere())
+    const centerWorld = modelSphere.center.clone()
+    const maxOffset = Math.max(0.001, modelSphere.radius * 0.44 * clampedExplode)
+    const meshBox = new Box3()
+    const worldPos = new Vector3()
+    const worldTarget = new Vector3()
+    const localBase = new Vector3()
+    const localTarget = new Vector3()
 
-    // Apply clipping plane and xray settings to all materials
-    clonedScene.traverse((obj) => {
-      if (!(obj instanceof Mesh)) {
-        return
-      }
+    preparedScene.meshes.forEach((mesh) => {
+      const parent = mesh.parent
+      const original = mesh.userData.__originalPosition as Vector3 | undefined
+      if (!parent || !original) return
 
-      const materials = Array.isArray(obj.material) ? obj.material : [obj.material]
-      materials.forEach((mat) => {
-        if (!(mat instanceof MeshStandardMaterial || mat instanceof MeshPhysicalMaterial)) return
+      // Use mesh bounds center (not pivot) so pieces split even when pivots share origin.
+      meshBox.setFromObject(mesh)
+      meshBox.getCenter(worldPos)
+      const direction = worldPos.clone().sub(centerWorld)
+      if (direction.lengthSq() <= 0.000001) return
 
-        if (mat.userData.__baseColorHex === undefined) {
-          mat.userData.__baseColorHex = mat.color.getHex()
+      const offsetWorld = direction.normalize().multiplyScalar(maxOffset)
+      worldTarget.copy(worldPos).add(offsetWorld)
+      localBase.copy(worldPos)
+      localTarget.copy(worldTarget)
+      parent.worldToLocal(localBase)
+      parent.worldToLocal(localTarget)
+      const localDelta = localTarget.sub(localBase)
+      mesh.position.copy(original.clone().add(localDelta))
+    })
+  }, [clonedScene, explodeAmount, preparedScene])
+
+  useEffect(() => {
+    const visited = new Set<Material>()
+    const hasClipping = Boolean(clippingPlanes && clippingPlanes.length > 0)
+
+    preparedScene.meshes.forEach((mesh) => {
+      const mats = Array.isArray(mesh.material) ? mesh.material : [mesh.material]
+      mats.forEach((mat) => {
+        if (!mat || visited.has(mat)) return
+        visited.add(mat)
+
+        const anyMat = mat as any
+
+        if (anyMat.color?.getHex && anyMat.color?.set) {
+          if (mat.userData.__baseColorHex === undefined) {
+            mat.userData.__baseColorHex = anyMat.color.getHex()
+          }
+          if (modelColor) {
+            anyMat.color.set(modelColor)
+          } else if (typeof mat.userData.__baseColorHex === 'number') {
+            anyMat.color.setHex(mat.userData.__baseColorHex)
+          }
         }
 
-        if (modelColor) {
-          mat.color.set(modelColor)
-        } else if (typeof mat.userData.__baseColorHex === 'number') {
-          mat.color.setHex(mat.userData.__baseColorHex)
+        anyMat.clippingPlanes = hasClipping ? clippingPlanes : null
+        anyMat.clipShadows = hasClipping
+
+        if (typeof anyMat.transparent === 'boolean' && typeof anyMat.opacity === 'number') {
+          if (mat.userData.__xrayOriginalTransparent === undefined) {
+            mat.userData.__xrayOriginalTransparent = anyMat.transparent
+            mat.userData.__xrayOriginalOpacity = anyMat.opacity
+            mat.userData.__xrayOriginalWireframe = typeof anyMat.wireframe === 'boolean' ? anyMat.wireframe : false
+          }
+
+          if (xrayMode) {
+            anyMat.transparent = true
+            anyMat.opacity = Math.min(anyMat.opacity || 1, 0.45)
+            if (typeof anyMat.wireframe === 'boolean') {
+              anyMat.wireframe = true
+            }
+          } else {
+            anyMat.transparent = Boolean(mat.userData.__xrayOriginalTransparent)
+            anyMat.opacity = typeof mat.userData.__xrayOriginalOpacity === 'number' ? mat.userData.__xrayOriginalOpacity : 1
+            if (typeof anyMat.wireframe === 'boolean') {
+              anyMat.wireframe = Boolean(mat.userData.__xrayOriginalWireframe)
+            }
+          }
         }
 
-        if (clippingPlanes && clippingPlanes.length > 0) {
-          mat.clippingPlanes = clippingPlanes
-        }
-
-        if (mat.userData.__xrayOriginalTransparent === undefined) {
-          mat.userData.__xrayOriginalTransparent = mat.transparent
-          mat.userData.__xrayOriginalOpacity = mat.opacity
-          mat.userData.__xrayOriginalWireframe = mat.wireframe
-        }
-
-        if (xrayMode) {
-          mat.transparent = true
-          mat.opacity = Math.min(mat.opacity || 1, 0.45)
-          mat.wireframe = true
-        } else {
-          mat.transparent = Boolean(mat.userData.__xrayOriginalTransparent)
-          mat.opacity = typeof mat.userData.__xrayOriginalOpacity === 'number' ? mat.userData.__xrayOriginalOpacity : 1
-          mat.wireframe = Boolean(mat.userData.__xrayOriginalWireframe)
-        }
+        mat.needsUpdate = true
       })
     })
-  }, [clonedScene, highlightedNodeNames, highlightColor, modelColor, clippingPlanes, xrayMode])
+  }, [preparedScene, modelColor, clippingPlanes, xrayMode])
 
   return (
     <group ref={ref} {...groupProps} onClick={handleModelClick}>
