@@ -185,7 +185,7 @@
 
 .sidebar .dual-slider {
   position: relative;
-  height: 1.9rem;
+  height: 1.75rem;
 }
 
 .sidebar .dual-slider-track {
@@ -197,6 +197,7 @@
   height: 4px;
   border-radius: 999px;
   background: rgba(148, 163, 184, 0.45);
+  pointer-events: none;
 }
 
 .sidebar .dual-slider-range {
@@ -206,15 +207,16 @@
   height: 4px;
   border-radius: 999px;
   background: #2563eb;
+  pointer-events: none;
 }
 
 .sidebar .clip-slider.dual {
   position: absolute;
-  left: 0;
-  right: 0;
-  top: 0;
+  inset: 0;
+  width: 100%;
+  height: 100%;
   margin-top: 0;
-  pointer-events: auto;
+  pointer-events: none;
   background: transparent;
   -webkit-appearance: none;
   appearance: none;
@@ -225,22 +227,23 @@
 }
 
 .sidebar .clip-slider.dual.max {
-  z-index: 4;
+  z-index: 6;
 }
 
 .sidebar .clip-slider.dual:focus {
-  z-index: 7;
   outline: none;
 }
 
 .sidebar .clip-slider.dual::-webkit-slider-runnable-track {
   height: 4px;
   background: transparent;
+  border: 0;
 }
 
 .sidebar .clip-slider.dual::-moz-range-track {
   height: 4px;
   background: transparent;
+  border: 0;
 }
 
 .sidebar .clip-slider.dual::-webkit-slider-thumb {
@@ -251,6 +254,8 @@
   background: #5b64d6;
   border: 0;
   margin-top: -5px;
+  pointer-events: auto;
+  cursor: pointer;
 }
 
 .sidebar .clip-slider.dual::-moz-range-thumb {
@@ -259,6 +264,8 @@
   border-radius: 999px;
   background: #5b64d6;
   border: 0;
+  pointer-events: auto;
+  cursor: pointer;
 }
 
 .sidebar .tool-caption {

@@ -33,6 +33,7 @@ function App() {
   const [modelHalfHeight, setModelHalfHeight] = useState<number>(2.5)
   const [modelHalfWidth, setModelHalfWidth] = useState<number>(2.5)
   const [boundsInitialized, setBoundsInitialized] = useState(false)
+  const BOUNDS_SYNC_EPSILON = 0.08
 
   return (
     <div className="app-layout">
@@ -121,20 +122,66 @@ function App() {
             viewSettings={viewSettings}
             clippingEnabled={boundsInitialized}
             onModelBoundsComputed={(bounds: { halfHeight: number; halfWidth: number }) => {
-              setModelHalfHeight(bounds.halfHeight)
-              setModelHalfWidth(bounds.halfWidth)
-              // Initialize clipping offsets to show more than half of the model on first mount
+              setModelHalfHeight((current) => (
+                Math.abs(current - bounds.halfHeight) < 0.0001 ? current : bounds.halfHeight
+              ))
+              setModelHalfWidth((current) => (
+                Math.abs(current - bounds.halfWidth) < 0.0001 ? current : bounds.halfWidth
+              ))
+
+              // Initialize clipping to full model bounds on first mount.
               if (!boundsInitialized) {
                 setBoundsInitialized(true)
                 setViewSettings((current) => ({
                   ...current,
-                  // Default: full model visible. Slab clipping is user-controlled.
                   clippingYMin: -bounds.halfHeight,
                   clippingYMax: bounds.halfHeight,
                   clippingXMin: -bounds.halfWidth,
                   clippingXMax: bounds.halfWidth,
                 }))
+                return
               }
+
+              // Keep clipping/explode consistent:
+              // if user is currently at (or very near) full range, follow updated explode bounds.
+              // otherwise only clamp to prevent invalid out-of-range values.
+              setViewSettings((current) => {
+                const yWasFull = Math.abs(current.clippingYMin + modelHalfHeight) < BOUNDS_SYNC_EPSILON
+                  && Math.abs(current.clippingYMax - modelHalfHeight) < BOUNDS_SYNC_EPSILON
+                const xWasFull = Math.abs(current.clippingXMin + modelHalfWidth) < BOUNDS_SYNC_EPSILON
+                  && Math.abs(current.clippingXMax - modelHalfWidth) < BOUNDS_SYNC_EPSILON
+
+                const clamp = (value: number, min: number, max: number) => Math.max(min, Math.min(max, value))
+
+                let nextYMin = yWasFull ? -bounds.halfHeight : clamp(current.clippingYMin, -bounds.halfHeight, bounds.halfHeight)
+                let nextYMax = yWasFull ? bounds.halfHeight : clamp(current.clippingYMax, -bounds.halfHeight, bounds.halfHeight)
+                if (nextYMin > nextYMax) {
+                  nextYMin = nextYMax
+                }
+
+                let nextXMin = xWasFull ? -bounds.halfWidth : clamp(current.clippingXMin, -bounds.halfWidth, bounds.halfWidth)
+                let nextXMax = xWasFull ? bounds.halfWidth : clamp(current.clippingXMax, -bounds.halfWidth, bounds.halfWidth)
+                if (nextXMin > nextXMax) {
+                  nextXMin = nextXMax
+                }
+
+                if (
+                  nextYMin === current.clippingYMin
+                  && nextYMax === current.clippingYMax
+                  && nextXMin === current.clippingXMin
+                  && nextXMax === current.clippingXMax
+                ) {
+                  return current
+                }
+
+                return {
+                  ...current,
+                  clippingYMin: nextYMin,
+                  clippingYMax: nextYMax,
+                  clippingXMin: nextXMin,
+                  clippingXMax: nextXMax,
+                }
+              })
             }}
           />
         </section>

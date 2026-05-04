@@ -764,8 +764,12 @@ export default function Scene({
   const [selectedMeshCenter, setSelectedMeshCenter] = useState<Vec3 | null>(null)
   const [selectedMeshName, setSelectedMeshName] = useState<string | null>(null)
   const MIN_CAMERA_DISTANCE = 0.01
-  const boundsComputedRef = useRef(false)
   const controlsReadyRef = useRef(false)
+  const onModelBoundsComputedRef = useRef(onModelBoundsComputed)
+
+  useEffect(() => {
+    onModelBoundsComputedRef.current = onModelBoundsComputed
+  }, [onModelBoundsComputed])
 
   const handleControlsRef = useCallback((instance: OrbitControlsImpl | null) => {
     controlsRef.current = instance
@@ -849,9 +853,9 @@ export default function Scene({
     [eferentConnections, afferentConnections],
   )
 
-  // Compute model bounds once the model group is available and notify parent for slider range.
+  // Compute model bounds and notify parent for clipping slider ranges.
   useEffect(() => {
-    if (!modelGroup || boundsComputedRef.current) return
+    if (!modelGroup) return
 
     try {
       // Ensure world matrices are up-to-date before computing bounds
@@ -870,12 +874,11 @@ export default function Scene({
       const halfWidth = Math.max(0.001, size.x * 0.5)
       setModelRadiusLocal(Math.max(0.001, sphere.radius))
       setModelCenterWorld([center.x, center.y, center.z])
-      onModelBoundsComputed?.({ halfHeight, halfWidth })
-      boundsComputedRef.current = true
+      onModelBoundsComputedRef.current?.({ halfHeight, halfWidth })
     } catch (err) {
       // ignore
     }
-  }, [modelGroup, onModelBoundsComputed])
+  }, [modelGroup, viewSettings.explodeAmount])
 
   // When model is available, update its world matrices and precompute pin world positions
   useEffect(() => {
