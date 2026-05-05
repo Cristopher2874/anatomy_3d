@@ -50,6 +50,10 @@ const SELECTION_FOCUS_RADIUS_MULTIPLIER = 1.55
 const PANEL_GRID_ROW_GAP_Y = 12
 const PANEL_GRID_COL_GAP_X = 12
 const PANEL_GRID_ROWS = 2
+const THALAMUS_SELECTED_COLOR = '#1d4ed8'
+const THALAMUS_SELECTED_EMISSIVE = '#93c5fd'
+const THALAMUS_CONTEXT_IDLE_COLOR = '#b8b0a1'
+const THALAMUS_CONTEXT_ACTIVE_COLOR = '#9d9485'
 type Vec3Tuple = [number, number, number]
 
 const normalizeMeshName = (value: string) => value.toLowerCase().replace(/[^a-z0-9_]/g, '')
@@ -312,6 +316,7 @@ export default function ThalamusScene({
         const anyMat = material as any
         const hasEmissive = anyMat?.emissive && typeof anyMat.emissive.setHex === 'function'
         const canFade = typeof anyMat?.opacity === 'number' && typeof anyMat?.transparent === 'boolean'
+        const isContextMesh = anyMat.userData.__thalamusRole === 'context' || !anyMat.userData.__nucleusPieceColor
 
         if (hasEmissive && anyMat.userData.__nucleusBaseEmissiveHex === undefined) {
           anyMat.userData.__nucleusBaseEmissiveHex = anyMat.emissive.getHex()
@@ -326,51 +331,68 @@ export default function ThalamusScene({
         if (anyMat.color?.set && anyMat.userData.__nucleusPieceColor === undefined) {
           anyMat.userData.__nucleusPieceColor = getThalamusMeshColor(child.name || null)
         }
-
         if (!hasSelection) {
           if (anyMat.color?.set && anyMat.userData.__nucleusPieceColor) {
             anyMat.color.set(anyMat.userData.__nucleusPieceColor)
+          } else if (anyMat.color?.set) {
+            anyMat.color.set(THALAMUS_CONTEXT_IDLE_COLOR)
           }
           if (hasEmissive) {
-            anyMat.emissive.setHex(anyMat.userData.__nucleusBaseEmissiveHex ?? 0x000000)
+            anyMat.emissive.setHex(
+              isContextMesh
+                ? (anyMat.userData.__nucleusBaseEmissiveHex ?? 0xe7edf5)
+                : (anyMat.userData.__nucleusBaseEmissiveHex ?? 0x000000),
+            )
           }
           if (typeof anyMat?.emissiveIntensity === 'number') {
-            anyMat.emissiveIntensity = anyMat.userData.__nucleusBaseEmissiveIntensity ?? 0
+            anyMat.emissiveIntensity = isContextMesh
+              ? Math.max(anyMat.userData.__nucleusBaseEmissiveIntensity ?? 0, 0.05)
+              : (anyMat.userData.__nucleusBaseEmissiveIntensity ?? 0)
           }
           if (canFade) {
-            anyMat.opacity = anyMat.userData.__nucleusBaseOpacity ?? 1
-            anyMat.transparent = Boolean(anyMat.userData.__nucleusBaseTransparent)
+            anyMat.opacity = isContextMesh
+              ? 1
+              : (anyMat.userData.__nucleusBaseOpacity ?? 1)
+            anyMat.transparent = isContextMesh ? false : Boolean(anyMat.userData.__nucleusBaseTransparent)
           }
           material.needsUpdate = true
           return
         }
 
         if (isSelected) {
-          if (anyMat.color?.set && anyMat.userData.__nucleusPieceColor) {
-            anyMat.color.set(anyMat.userData.__nucleusPieceColor)
+          if (anyMat.color?.set) {
+            anyMat.color.set(THALAMUS_SELECTED_COLOR)
           }
           if (hasEmissive) {
-            anyMat.emissive.setHex(0x4a90e2)
+            anyMat.emissive.set(THALAMUS_SELECTED_EMISSIVE)
           }
           if (typeof anyMat?.emissiveIntensity === 'number') {
-            anyMat.emissiveIntensity = 0.7
+            anyMat.emissiveIntensity = 1.25
           }
           if (canFade) {
             anyMat.opacity = 1
-            anyMat.transparent = true
+            anyMat.transparent = false
           }
         } else if (canFade) {
           if (anyMat.color?.set && anyMat.userData.__nucleusPieceColor) {
             anyMat.color.set(anyMat.userData.__nucleusPieceColor)
+          } else if (anyMat.color?.set) {
+            anyMat.color.set(THALAMUS_CONTEXT_ACTIVE_COLOR)
           }
           if (hasEmissive) {
-            anyMat.emissive.setHex(anyMat.userData.__nucleusBaseEmissiveHex ?? 0x000000)
+            anyMat.emissive.setHex(
+              isContextMesh
+                ? (anyMat.userData.__nucleusBaseEmissiveHex ?? 0xe7edf5)
+                : (anyMat.userData.__nucleusBaseEmissiveHex ?? 0x000000),
+            )
           }
           if (typeof anyMat?.emissiveIntensity === 'number') {
-            anyMat.emissiveIntensity = anyMat.userData.__nucleusBaseEmissiveIntensity ?? 0
+            anyMat.emissiveIntensity = isContextMesh
+              ? Math.max(anyMat.userData.__nucleusBaseEmissiveIntensity ?? 0, 0.04)
+              : (anyMat.userData.__nucleusBaseEmissiveIntensity ?? 0)
           }
-          anyMat.opacity = 0.22
-          anyMat.transparent = true
+          anyMat.opacity = isContextMesh ? 0.82 : 0.14
+          anyMat.transparent = false
         }
 
         material.needsUpdate = true
@@ -677,7 +699,7 @@ export default function ThalamusScene({
             position={[0, 0, 0]}
             scale={0.95}
             highlightedNodeNames={manualHighlighted}
-            highlightColor="#2563eb"
+            highlightColor="#60a5fa"
             clippingPlanes={clippingPlanes}
             xrayMode={viewSettings.xrayMode}
             fallback={

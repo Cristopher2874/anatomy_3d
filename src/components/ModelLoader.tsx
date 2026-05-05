@@ -46,6 +46,9 @@ type PreparedScene = {
   meshes: Mesh[]
 }
 
+const THALAMUS_CONTEXT_COLOR = '#b8b0a1'
+const THALAMUS_CONTEXT_EMISSIVE = '#ded8cc'
+
 class ModelLoadBoundary extends Component<{ fallback: ReactNode; children: ReactNode }, { hasError: boolean }> {
   override state = { hasError: false }
 
@@ -258,6 +261,18 @@ const ModelRoot = forwardRef<any, ModelRootProps>(function ModelRoot({
             if (thalamusBaseColor && mat.color?.set) {
               mat.color.set(thalamusBaseColor)
               mat.userData.__baseColorHex = new Color(thalamusBaseColor).getHex()
+              mat.userData.__thalamusRole = 'nucleus'
+            } else if (mat.color?.set) {
+              mat.color.set(THALAMUS_CONTEXT_COLOR)
+              mat.userData.__baseColorHex = new Color(THALAMUS_CONTEXT_COLOR).getHex()
+              mat.userData.__contextColorHex = new Color(THALAMUS_CONTEXT_COLOR).getHex()
+              mat.userData.__thalamusRole = 'context'
+            }
+            if ((mat as any).emissive?.set) {
+              ;(mat as any).emissive.set(thalamusBaseColor ? '#000000' : THALAMUS_CONTEXT_EMISSIVE)
+            }
+            if (typeof (mat as any).emissiveIntensity === 'number') {
+              ;(mat as any).emissiveIntensity = thalamusBaseColor ? 0 : 0.05
             }
             mat.transparent = false
             mat.opacity = 1

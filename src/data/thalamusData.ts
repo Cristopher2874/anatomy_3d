@@ -36,15 +36,15 @@ type ThalamusReferenceInfo = {
 }
 
 export const THALAMUS_PIECE_PALETTE = {
-  thalamusgris: '#c9d7d0',
-  thalamusamarillo: '#d8d2c5',
-  thalamusceleste_adelante: '#cbd6e3',
-  thalamusceleste_atras: '#bcc9dc',
-  thalamusrosado: '#d8cbd6',
-  thalamusrojo: '#d9c7c2',
-  thalamusazul: '#c7d4db',
-  thalamusblanco: '#d9d8cf',
-  thalamusvioleta: '#cfcbe0',
+  thalamusgris: '#93a59b',
+  thalamusamarillo: '#b7ab90',
+  thalamusceleste_adelante: '#8fa9c2',
+  thalamusceleste_atras: '#7d95b2',
+  thalamusrosado: '#b996ac',
+  thalamusrojo: '#b8847f',
+  thalamusazul: '#7f9dad',
+  thalamusblanco: '#aca795',
+  thalamusvioleta: '#9e96bf',
 } as const
 
 export const THALAMUS_NUCLEI: Record<string, NucleoTalamico> = {
