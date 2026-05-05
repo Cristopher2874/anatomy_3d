@@ -1,3 +1,5 @@
+import { useState } from 'react'
+
 type CameraControlsProps = {
   isAutoRotate: boolean
   activeQuickView: string | null
@@ -13,14 +15,15 @@ type CameraControlsProps = {
 export default function CameraControls({
   isAutoRotate,
   activeQuickView,
-  modelColor,
+  // modelColor,
   onGoHome,
   onZoomIn,
   onZoomOut,
   onToggleAutoRotate,
   onQuickView,
-  onModelColorChange,
+  // onModelColorChange,
 }: CameraControlsProps) {
+  const [isCollapsed, setIsCollapsed] = useState(false)
   const quickViews: Array<{
     id: 'isometric' | 'front' | 'back' | 'left' | 'right' | 'top' | 'bottom'
     label: string
@@ -36,55 +39,68 @@ export default function CameraControls({
   ]
 
   return (
-    <div className="camera-controls" role="group" aria-label="Controles de cámara">
-      <button type="button" className="camera-btn home" onClick={onGoHome}>
-        Vista Inicial
-      </button>
-
-      <div className="quick-view-group" aria-label="Vistas anatómicas">
-        {quickViews.map((view) => (
-          <button
-            key={view.id}
-            type="button"
-            className={`camera-btn quick ${activeQuickView === view.id ? 'active' : ''}`}
-            aria-label={view.ariaLabel}
-            onClick={() => {
-              onQuickView(view.id)
-            }}
-          >
-            {view.label}
-          </button>
-        ))}
-      </div>
-
-      <div className="zoom-group" aria-label="Control de zoom">
-        <button type="button" className="camera-btn" onClick={onZoomIn} aria-label="Acercar">
-          +
-        </button>
-        <button type="button" className="camera-btn" onClick={onZoomOut} aria-label="Alejar">
-          -
-        </button>
-      </div>
-
+    <div className={`camera-controls ${isCollapsed ? 'collapsed' : ''}`} role="group" aria-label="Controles de cámara">
       <button
         type="button"
-        className={`camera-btn auto ${isAutoRotate ? 'active' : ''}`}
-        onClick={onToggleAutoRotate}
-        aria-pressed={isAutoRotate}
+        className="camera-toggle"
+        aria-label={isCollapsed ? 'Expandir controles de cámara' : 'Colapsar controles de cámara'}
+        onClick={() => setIsCollapsed((c: boolean) => !c)}
       >
-        Autorrotación {isAutoRotate ? 'ACTIVA' : 'INACTIVA'}
+        {isCollapsed ? '‹' : '›'}
       </button>
 
-      <label className="model-color-group" aria-label="Color del modelo">
-        <span>Color modelo</span>
-        <input
-          type="color"
-          value={modelColor}
-          onChange={(event) => {
-            onModelColorChange(event.target.value)
-          }}
-        />
-      </label>
+      {!isCollapsed ? (
+        <>
+          <button type="button" className="camera-btn home" onClick={onGoHome}>
+            Vista Inicial
+          </button>
+
+          <div className="quick-view-group" aria-label="Vistas anatómicas">
+            {quickViews.map((view) => (
+              <button
+                key={view.id}
+                type="button"
+                className={`camera-btn quick ${activeQuickView === view.id ? 'active' : ''}`}
+                aria-label={view.ariaLabel}
+                onClick={() => {
+                  onQuickView(view.id)
+                }}
+              >
+                {view.label}
+              </button>
+            ))}
+          </div>
+
+          <div className="zoom-group" aria-label="Control de zoom">
+            <button type="button" className="camera-btn" onClick={onZoomIn} aria-label="Acercar">
+              +
+            </button>
+            <button type="button" className="camera-btn" onClick={onZoomOut} aria-label="Alejar">
+              -
+            </button>
+          </div>
+
+          <button
+            type="button"
+            className={`camera-btn auto ${isAutoRotate ? 'active' : ''}`}
+            onClick={onToggleAutoRotate}
+            aria-pressed={isAutoRotate}
+          >
+            Autorrotación {isAutoRotate ? 'ACTIVA' : 'INACTIVA'}
+          </button>
+
+          {/* <label className="model-color-group" aria-label="Color del modelo">
+            <span>Color modelo</span>
+            <input
+              type="color"
+              value={modelColor}
+              onChange={(event) => {
+                onModelColorChange(event.target.value)
+              }}
+            />
+          </label> */}
+        </>
+      ) : null}
     </div>
   )
 }

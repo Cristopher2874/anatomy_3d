@@ -32,6 +32,35 @@
   box-shadow: 0 10px 24px rgba(15, 23, 42, 0.16);
 }
 
+.camera-controls.collapsed {
+  width: 48px;
+  height: 48px;
+  padding: 6px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.camera-toggle {
+  position: absolute;
+  left: 6px;
+  top: 6px;
+  width: 34px;
+  height: 34px;
+  border: 0;
+  border-radius: 8px;
+  background: rgba(15, 23, 42, 0.06);
+  cursor: pointer;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  font-weight: 700;
+}
+
+.camera-controls.collapsed .camera-toggle {
+  left: 8px;
+}
+
 .camera-btn {
   border: 0;
   border-radius: 12px;
