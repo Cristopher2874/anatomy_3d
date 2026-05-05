@@ -32,39 +32,39 @@ export default function Sidebar({
   selectedConnection,
   selectedPieceInfo,
   selectedThalamusInfo,
-  viewSettings,
+  /* viewSettings,
   clippingRange,
-  clippingRangeX,
+  clippingRangeX, */
   onToggleLayer,
-  onChangeClippingYMin,
+  /* onChangeClippingYMin,
   onChangeClippingYMax,
   onChangeClippingXMin,
-  onChangeClippingXMax,
-  onChangeExplodeAmount,
-  onChangeConnectionVisibilityMode,
-  onToggleXray,
+  onChangeClippingXMax, */
+  // onChangeExplodeAmount,
+  // onChangeConnectionVisibilityMode,
+  // onToggleXray,
   onClearSelection,
 }: SidebarProps) {
   const [shareMessage, setShareMessage] = useState('')
-  const hasSelection = Boolean(selectedConnection || selectedPieceInfo)
+  // const hasSelection = Boolean(selectedConnection || selectedPieceInfo)
   void onToggleLayer
-  const clamp = (value: number, min: number, max: number) => Math.max(min, Math.min(max, value))
+  /* const clamp = (value: number, min: number, max: number) => Math.max(min, Math.min(max, value))
   const yRangeMin = clippingRange ? clippingRange.min : -3
   const yRangeMax = clippingRange ? clippingRange.max : 3
   const xRangeMin = clippingRangeX ? clippingRangeX.min : -3
-  const xRangeMax = clippingRangeX ? clippingRangeX.max : 3
-  const yMinValue = clamp(viewSettings.clippingYMin, yRangeMin, yRangeMax)
+  const xRangeMax = clippingRangeX ? clippingRangeX.max : 3 */
+  /* const yMinValue = clamp(viewSettings.clippingYMin, yRangeMin, yRangeMax)
   const yMaxValue = clamp(viewSettings.clippingYMax, yRangeMin, yRangeMax)
   const xMinValue = clamp(viewSettings.clippingXMin, xRangeMin, xRangeMax)
-  const xMaxValue = clamp(viewSettings.clippingXMax, xRangeMin, xRangeMax)
-  const ySpan = Math.max(0.0001, yRangeMax - yRangeMin)
-  const xSpan = Math.max(0.0001, xRangeMax - xRangeMin)
-  const yLeftPercent = ((yMinValue - yRangeMin) / ySpan) * 100
-  const yRightPercent = ((yMaxValue - yRangeMin) / ySpan) * 100
-  const xLeftPercent = ((xMinValue - xRangeMin) / xSpan) * 100
-  const xRightPercent = ((xMaxValue - xRangeMin) / xSpan) * 100
+  const xMaxValue = clamp(viewSettings.clippingXMax, xRangeMin, xRangeMax) */
+  // const ySpan = Math.max(0.0001, yRangeMax - yRangeMin)
+  // const xSpan = Math.max(0.0001, xRangeMax - xRangeMin)
+  // const yLeftPercent = ((yMinValue - yRangeMin) / ySpan) * 100
+  // const yRightPercent = ((yMaxValue - yRangeMin) / ySpan) * 100
+  // const xLeftPercent = ((xMinValue - xRangeMin) / xSpan) * 100
+  // const xRightPercent = ((xMaxValue - xRangeMin) / xSpan) * 100
 
-  const handleYMinChange = (nextValue: number) => {
+  /* const handleYMinChange = (nextValue: number) => {
     onChangeClippingYMin(Math.min(nextValue, yMaxValue))
   }
   const handleYMaxChange = (nextValue: number) => {
@@ -75,7 +75,7 @@ export default function Sidebar({
   }
   const handleXMaxChange = (nextValue: number) => {
     onChangeClippingXMax(Math.max(nextValue, xMinValue))
-  }
+  } */
 
   useEffect(() => {
     setShareMessage('')
