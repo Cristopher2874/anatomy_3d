@@ -1,5 +1,5 @@
 :root {
-  --header-height: 84px;
+  --header-height: 96px;
   --radius-soft: 16px;
   --bg-soft: #f8fafc;
   --cobalt: #2563eb;
@@ -31,6 +31,12 @@
 
 .brand-block {
   display: flex;
+  align-items: center;
+  gap: 0.9rem;
+}
+
+.brand-copy {
+  display: flex;
   flex-direction: column;
   gap: 0.2rem;
 }
@@ -39,6 +45,22 @@
   margin: 0;
   font-size: 1.12rem;
   line-height: 1.1;
+}
+
+.brand-logos {
+  display: flex;
+  align-items: center;
+  gap: 0.45rem;
+}
+
+.brand-logo {
+  display: block;
+  width: 48px;
+  height: 48px;
+  object-fit: contain;
+  border-radius: 12px;
+  background: #fff;
+  box-shadow: 0 8px 18px rgba(15, 23, 42, 0.12);
 }
 
 .brand-tag {
@@ -79,6 +101,18 @@
 
 .about-button:hover {
   filter: brightness(1.05);
+}
+
+@media (max-width: 980px) {
+  .brand-block {
+    align-items: flex-start;
+    gap: 0.75rem;
+  }
+
+  .brand-logo {
+    width: 42px;
+    height: 42px;
+  }
 }
 
 .app-main {
@@ -444,13 +478,27 @@
 }
 
 .about-modal h3 {
-  margin: 1rem 0 0.5rem;
+  margin: 0 0 0.5rem;
   font-size: 1.1rem;
 }
 
 .about-modal p {
   margin: 0.45rem 0;
   line-height: 1.5;
+}
+
+.about-section {
+  margin-top: 1rem;
+}
+
+.about-team-list {
+  margin: 0.45rem 0 0;
+  padding-left: 1.15rem;
+}
+
+.about-team-list li {
+  margin: 0.25rem 0;
+  line-height: 1.45;
 }
 
 .about-modal .eyebrow {

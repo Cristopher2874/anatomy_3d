@@ -118,22 +118,22 @@ export default function Sidebar({
 
   return (
     <aside className="sidebar" aria-live="polite">
-      <p className="eyebrow">Explorador</p>
-      <p className={`view-state ${hasSelection ? 'focus' : 'free'}`}>
+      {/* <p className="eyebrow">Explorador</p> */}
+      {/* <p className={`view-state ${hasSelection ? 'focus' : 'free'}`}>
         {hasSelection ? 'Vista enfocada' : 'Vista libre'}
-      </p>
+      </p> */}
 
-      <section className="tools-card" aria-label="Capas de visibilidad">
+      {/* <section className="tools-card" aria-label="Capas de visibilidad">
         <h3>Capas de Visibilidad</h3>
 
-        {/* <label className="layer-toggle">
+        <label className="layer-toggle">
           <input
             type="checkbox"
             checked={viewSettings.layers.showNerves}
             onChange={() => onToggleLayer('showNerves')}
           />
           <span>Nervios (Líneas)</span>
-        </label> */}
+        </label>
 
         {activeScene === 'brain' && (
           <label className="connection-visibility-control">
@@ -152,18 +152,18 @@ export default function Sidebar({
           </label>
         )}
 
-        {/* <label className="layer-toggle">
+        <label className="layer-toggle">
           <input
             type="checkbox"
             checked={viewSettings.layers.showTargetOrgans}
             onChange={() => onToggleLayer('showTargetOrgans')}
           />
           <span>Órgano destino (selección)</span>
-        </label> */}
+        </label> 
 
-      </section>
+      </section> */}
 
-      <section className="tools-card" aria-label="Herramientas avanzadas">
+      {/* <section className="tools-card" aria-label="Herramientas avanzadas">
         <h3>Planos de Corte (MRI)</h3>
         <div style={{ marginBottom: 8 }}>
           <label style={{ display: 'block', fontSize: 12, marginBottom: 4 }}>Rango superior-inferior (Y)</label>
@@ -281,7 +281,7 @@ export default function Sidebar({
         >
           Modo X-Ray {viewSettings.xrayMode ? 'ON' : 'OFF'}
         </button>
-      </section>
+      </section> */}
 
       {selectedConnection ? (
         <>
@@ -408,9 +408,9 @@ export default function Sidebar({
             </>
           ) : (
             <>
-              <h2>Bienvenido al laboratorio colaborativo</h2>
+              <h2>Bienvenido al visor 3D</h2>
               <p>
-                Selecciona una conexión para explorar. Emplea los controles para personalizar tu vista.
+                Selecciona una sección para explorar. Emplea los controles para personalizar tu vista.
               </p>
               <p>
                 Clic derecho en la escena para rotar, scroll para zoom y clic medio para desplazar.

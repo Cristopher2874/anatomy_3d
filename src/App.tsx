@@ -48,7 +48,7 @@ function createDefaultBounds(): SceneBounds {
 }
 
 function App() {
-  const [activeScene, setActiveScene] = useState<SceneKey>('brain')
+  const [activeScene, setActiveScene] = useState<SceneKey>('thalamus')
 
   // Brain scene selection state (kept isolated from thalamus scene)
   const [brainSelectedConnection, setBrainSelectedConnection] = useState<ConnectionWithType | null>(null)
@@ -231,12 +231,12 @@ function App() {
 
         <section className="canvas-panel">
           <div className="scene-tabs">
-            <button
+            {/* <button
               className={`scene-tab ${activeScene === 'brain' ? 'active' : ''}`}
               onClick={() => setActiveScene('brain')}
             >
               Encéfalo
-            </button>
+            </button> */}
             <button
               className={`scene-tab ${activeScene === 'thalamus' ? 'active' : ''}`}
               onClick={() => setActiveScene('thalamus')}
