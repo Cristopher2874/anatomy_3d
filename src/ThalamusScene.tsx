@@ -93,6 +93,10 @@ function DiagramLines({
   effStartAnchors,
   affPinOffsets,
   effPinOffsets,
+  openAfferenceIndex,
+  openEfferenceIndex,
+  onSelectAfference,
+  onSelectEfference,
 }: {
   modelGroup: any
   activeNucleus: string | null
@@ -103,6 +107,10 @@ function DiagramLines({
   effStartAnchors: Vec3Tuple[]
   affPinOffsets: (Vec3Tuple | null)[]
   effPinOffsets: (Vec3Tuple | null)[]
+  openAfferenceIndex: number | null
+  openEfferenceIndex: number | null
+  onSelectAfference: (index: number) => void
+  onSelectEfference: (index: number) => void
 }) {
   const [centerPoint, setCenterPoint] = useState<Vec3Tuple | null>(null)
   const [surfaceRadius, setSurfaceRadius] = useState(0.45)
@@ -184,6 +192,7 @@ function DiagramLines({
     <>
       {affStarts.map((start, idx) => {
         const pin = affEnds[idx] ?? centerPoint
+        const isActive = openAfferenceIndex === idx
         const needleTop: [number, number, number] = [pin[0], pin[1] + 0.26, pin[2]]
         const airRailY = Math.max(start[1], needleTop[1]) + 0.35 + idx * 0.02
         const curveMid: [number, number, number] = [
@@ -212,14 +221,26 @@ function DiagramLines({
               renderOrder={12}
             />
             <mesh position={pin} renderOrder={13}>
-              <sphereGeometry args={[0.052, 16, 16]} />
-              <meshBasicMaterial color="#2563eb" depthTest={false} />
+              <sphereGeometry args={[isActive ? 0.07 : 0.052, 16, 16]} />
+              <meshBasicMaterial color={isActive ? '#1d4ed8' : '#2563eb'} depthTest={false} />
+            </mesh>
+            <mesh
+              position={pin}
+              renderOrder={14}
+              onClick={(event) => {
+                event.stopPropagation()
+                onSelectAfference(idx)
+              }}
+            >
+              <sphereGeometry args={[0.1, 16, 16]} />
+              <meshBasicMaterial transparent opacity={0} depthTest={false} />
             </mesh>
           </group>
         )
       })}
       {effStarts.map((start, idx) => {
         const pin = effEnds[idx] ?? centerPoint
+        const isActive = openEfferenceIndex === idx
         const needleTop: [number, number, number] = [pin[0], pin[1] + 0.26, pin[2]]
         const airRailY = Math.max(start[1], needleTop[1]) + 0.35 + idx * 0.02
         const curveMid: [number, number, number] = [
@@ -248,8 +269,19 @@ function DiagramLines({
               renderOrder={12}
             />
             <mesh position={pin} renderOrder={13}>
-              <sphereGeometry args={[0.052, 16, 16]} />
-              <meshBasicMaterial color="#dc2626" depthTest={false} />
+              <sphereGeometry args={[isActive ? 0.07 : 0.052, 16, 16]} />
+              <meshBasicMaterial color={isActive ? '#b91c1c' : '#dc2626'} depthTest={false} />
+            </mesh>
+            <mesh
+              position={pin}
+              renderOrder={14}
+              onClick={(event) => {
+                event.stopPropagation()
+                onSelectEfference(idx)
+              }}
+            >
+              <sphereGeometry args={[0.1, 16, 16]} />
+              <meshBasicMaterial transparent opacity={0} depthTest={false} />
             </mesh>
           </group>
         )
@@ -276,6 +308,8 @@ export default function ThalamusScene({
   const [activeNucleus, setActiveNucleus] = useState<string | null>(null)
   const [activeNucleusCenter, setActiveNucleusCenter] = useState<[number, number, number] | null>(null)
   const [activeNucleusRadius, setActiveNucleusRadius] = useState<number | null>(null)
+  const [openAfferenceIndex, setOpenAfferenceIndex] = useState<number | null>(null)
+  const [openEfferenceIndex, setOpenEfferenceIndex] = useState<number | null>(null)
   const [modelFrame, setModelFrame] = useState<{
     center: [number, number, number]
     size: [number, number, number]
@@ -545,12 +579,19 @@ export default function ThalamusScene({
     setActiveNucleus(null)
     setActiveNucleusCenter(null)
     setActiveNucleusRadius(null)
+    setOpenAfferenceIndex(null)
+    setOpenEfferenceIndex(null)
     onSelectedNucleusChange?.(null)
   }, [onSelectedNucleusChange])
 
   useEffect(() => {
     clearSelection()
   }, [clearSelectionSignal, clearSelection])
+
+  useEffect(() => {
+    setOpenAfferenceIndex(null)
+    setOpenEfferenceIndex(null)
+  }, [activeNucleus])
 
   const panelDistanceX = Math.max(modelFrame.size[0] * PANEL_DISTANCE_FACTOR_X, PANEL_MIN_DISTANCE_X)
   const panelDistanceAdjusted = Math.max(
@@ -667,6 +708,14 @@ export default function ThalamusScene({
             effStartAnchors={effStartAnchors}
             affPinOffsets={affPinOffsets}
             effPinOffsets={effPinOffsets}
+            openAfferenceIndex={openAfferenceIndex}
+            openEfferenceIndex={openEfferenceIndex}
+            onSelectAfference={(idx) => {
+              setOpenAfferenceIndex((current) => (current === idx ? null : idx))
+            }}
+            onSelectEfference={(idx) => {
+              setOpenEfferenceIndex((current) => (current === idx ? null : idx))
+            }}
           />
 
           <ModelLoader
@@ -721,45 +770,101 @@ export default function ThalamusScene({
                 </Html>
               )}
 
-              {activeNucleusData.afferences.map((item, idx) => (
-                <Html key={`aff-card-${idx}`} position={affCardPositions[idx] ?? leftPanelPos} center occlude={false}>
-                  <section
-                    className={`thalamus-floating-panel thalamus-connection-card afference${affCompact ? ' compact' : ''}`}
-                    aria-label={`Aferencia ${idx + 1}`}
-                  >
-                    <h3 className="thalamus-panel-title">Aferencias</h3>
-                    <p className="thalamus-panel-subtitle">{activeNucleusData.name}</p>
-                    <article className="thalamus-panel-item">
-                      <p className="thalamus-panel-text"><strong>{item.label}</strong></p>
-                      <p className="thalamus-panel-meta">{item.main}</p>
-                      <p className="thalamus-panel-meta"><strong>Rol:</strong> {item.functionRole}</p>
-                    </article>
-                    <article className="thalamus-panel-item thalamus-panel-function">
-                      <p className="thalamus-panel-meta"><strong>{'Funci\u00f3n:'}</strong> {activeNucleusData.functionCore}</p>
-                    </article>
-                  </section>
-                </Html>
-              ))}
+              {activeNucleusData.afferences.map((item, idx) => {
+                const isOpen = openAfferenceIndex === idx
+                return (
+                  <Html key={`aff-card-${idx}`} position={affCardPositions[idx] ?? leftPanelPos} center occlude={false}>
+                    <section
+                      className={`thalamus-floating-panel thalamus-connection-card afference${affCompact ? ' compact' : ''}${isOpen ? ' expanded' : ' collapsed'}`}
+                      aria-label={`Aferencia ${idx + 1}`}
+                      onPointerDown={(event) => {
+                        event.stopPropagation()
+                      }}
+                      onClick={(event) => {
+                        event.stopPropagation()
+                      }}
+                    >
+                      <button
+                        type="button"
+                        className={`thalamus-card-trigger ${isOpen ? 'open' : ''}`}
+                        aria-expanded={isOpen}
+                        onPointerDown={(event) => {
+                          event.stopPropagation()
+                        }}
+                        onClick={(event) => {
+                          event.stopPropagation()
+                          setOpenAfferenceIndex((current) => (current === idx ? null : idx))
+                        }}
+                      >
+                        <span className="thalamus-card-trigger-title">Aferencias</span>
+                        <span className="thalamus-card-trigger-label">{item.label}</span>
+                        <span className="thalamus-card-trigger-icon">{isOpen ? '−' : '+'}</span>
+                      </button>
 
-              {activeNucleusData.efferences.map((item, idx) => (
-                <Html key={`eff-card-${idx}`} position={effCardPositions[idx] ?? rightPanelPos} center occlude={false}>
-                  <section
-                    className={`thalamus-floating-panel thalamus-connection-card efference${effCompact ? ' compact' : ''}`}
-                    aria-label={`Eferencia ${idx + 1}`}
-                  >
-                    <h3 className="thalamus-panel-title">Eferencias</h3>
-                    <p className="thalamus-panel-subtitle">{activeNucleusData.name}</p>
-                    <article className="thalamus-panel-item">
-                      <p className="thalamus-panel-text"><strong>{item.label}</strong></p>
-                      <p className="thalamus-panel-meta">{item.main}</p>
-                      <p className="thalamus-panel-meta"><strong>Rol:</strong> {item.functionRole}</p>
-                    </article>
-                    <article className="thalamus-panel-item thalamus-panel-function">
-                      <p className="thalamus-panel-meta"><strong>{'Funci\u00f3n:'}</strong> {activeNucleusData.functionCore}</p>
-                    </article>
-                  </section>
-                </Html>
-              ))}
+                      {isOpen && (
+                        <>
+                          <p className="thalamus-panel-subtitle">{activeNucleusData.name}</p>
+                          <article className="thalamus-panel-item">
+                            <p className="thalamus-panel-meta">{item.main}</p>
+                            <p className="thalamus-panel-meta"><strong>Rol:</strong> {item.functionRole}</p>
+                          </article>
+                          <article className="thalamus-panel-item thalamus-panel-function">
+                            <p className="thalamus-panel-meta"><strong>{'Funci\u00f3n:'}</strong> {activeNucleusData.functionCore}</p>
+                          </article>
+                        </>
+                      )}
+                    </section>
+                  </Html>
+                )
+              })}
+
+              {activeNucleusData.efferences.map((item, idx) => {
+                const isOpen = openEfferenceIndex === idx
+                return (
+                  <Html key={`eff-card-${idx}`} position={effCardPositions[idx] ?? rightPanelPos} center occlude={false}>
+                    <section
+                      className={`thalamus-floating-panel thalamus-connection-card efference${effCompact ? ' compact' : ''}${isOpen ? ' expanded' : ' collapsed'}`}
+                      aria-label={`Eferencia ${idx + 1}`}
+                      onPointerDown={(event) => {
+                        event.stopPropagation()
+                      }}
+                      onClick={(event) => {
+                        event.stopPropagation()
+                      }}
+                    >
+                      <button
+                        type="button"
+                        className={`thalamus-card-trigger ${isOpen ? 'open' : ''}`}
+                        aria-expanded={isOpen}
+                        onPointerDown={(event) => {
+                          event.stopPropagation()
+                        }}
+                        onClick={(event) => {
+                          event.stopPropagation()
+                          setOpenEfferenceIndex((current) => (current === idx ? null : idx))
+                        }}
+                      >
+                        <span className="thalamus-card-trigger-title">Eferencias</span>
+                        <span className="thalamus-card-trigger-label">{item.label}</span>
+                        <span className="thalamus-card-trigger-icon">{isOpen ? '−' : '+'}</span>
+                      </button>
+
+                      {isOpen && (
+                        <>
+                          <p className="thalamus-panel-subtitle">{activeNucleusData.name}</p>
+                          <article className="thalamus-panel-item">
+                            <p className="thalamus-panel-meta">{item.main}</p>
+                            <p className="thalamus-panel-meta"><strong>Rol:</strong> {item.functionRole}</p>
+                          </article>
+                          <article className="thalamus-panel-item thalamus-panel-function">
+                            <p className="thalamus-panel-meta"><strong>{'Funci\u00f3n:'}</strong> {activeNucleusData.functionCore}</p>
+                          </article>
+                        </>
+                      )}
+                    </section>
+                  </Html>
+                )
+              })}
             </>
           )}
         </Center>
