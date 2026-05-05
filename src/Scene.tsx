@@ -24,6 +24,7 @@ import Pin from './components/Pin'
 import ExternalTargetIndicator from './components/ExternalTargetIndicator'
 import CameraControls from './components/CameraControls'
 import connectionsData from '../data/connections.json'
+import { getBrainSceneConnectionDetails } from './data/thalamusData'
 import type {
   ConnectionVisibilityMode,
   ConnectionWithType,
@@ -815,7 +816,15 @@ export default function Scene({
   }, [viewSettings.clippingXMin])
 
   const eferentConnections = useMemo(
-    () => connections.eferencias.map((item) => ({ ...item, tipo: 'eferencia' as const })),
+    () => connections.eferencias.map((item) => {
+      const sourceOfTruth = getBrainSceneConnectionDetails(item.id, 'eferencia')
+      return {
+        ...item,
+        infoText: sourceOfTruth?.infoText ?? item.infoText,
+        externalTargets: sourceOfTruth?.externalTargets ?? item.externalTargets,
+        tipo: 'eferencia' as const,
+      }
+    }),
     [],
   )
 
@@ -834,6 +843,7 @@ export default function Scene({
       // Shorten afferent placeholders to keep missing-organ indicators closer to the model.
       const sourceDistance = Math.max(0.6, modelRadiusLocal * spec.sourceDistanceMultiplier * 0.5)
       const sourcePosition = center.clone().add(direction.multiplyScalar(sourceDistance))
+      const sourceOfTruth = getBrainSceneConnectionDetails(spec.nucleusId, 'aferencia')
 
       return {
         id: spec.id,
@@ -842,8 +852,8 @@ export default function Scene({
         posicionLocal: nucleusLocal as Vec3,
         posicionDestino: [sourcePosition.x, sourcePosition.y, sourcePosition.z] as Vec3,
         colorLinea: '#2563eb',
-        infoText: spec.infoText,
-        externalTargets: spec.externalTargets ?? [],
+        infoText: sourceOfTruth?.infoText ?? spec.infoText,
+        externalTargets: sourceOfTruth?.externalTargets ?? spec.externalTargets ?? [],
         pin: false,
         tipo: 'aferencia' as const,
       }

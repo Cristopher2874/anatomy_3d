@@ -228,6 +228,10 @@
   width: 290px;
 }
 
+.thalamus-connection-card.active-card {
+  box-shadow: 0 18px 34px rgba(15, 23, 42, 0.28);
+}
+
 .thalamus-card-trigger {
   width: 100%;
   display: grid;

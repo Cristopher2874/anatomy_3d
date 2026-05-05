@@ -310,6 +310,7 @@ export default function ThalamusScene({
   const [activeNucleusRadius, setActiveNucleusRadius] = useState<number | null>(null)
   const [openAfferenceIndex, setOpenAfferenceIndex] = useState<number | null>(null)
   const [openEfferenceIndex, setOpenEfferenceIndex] = useState<number | null>(null)
+  const [activeOverlayCardId, setActiveOverlayCardId] = useState<string | null>(null)
   const [modelFrame, setModelFrame] = useState<{
     center: [number, number, number]
     size: [number, number, number]
@@ -581,6 +582,7 @@ export default function ThalamusScene({
     setActiveNucleusRadius(null)
     setOpenAfferenceIndex(null)
     setOpenEfferenceIndex(null)
+    setActiveOverlayCardId(null)
     onSelectedNucleusChange?.(null)
   }, [onSelectedNucleusChange])
 
@@ -591,6 +593,7 @@ export default function ThalamusScene({
   useEffect(() => {
     setOpenAfferenceIndex(null)
     setOpenEfferenceIndex(null)
+    setActiveOverlayCardId(null)
   }, [activeNucleus])
 
   const panelDistanceX = Math.max(modelFrame.size[0] * PANEL_DISTANCE_FACTOR_X, PANEL_MIN_DISTANCE_X)
@@ -653,6 +656,26 @@ export default function ThalamusScene({
   ] as Vec3Tuple)
   const affPinOffsets = activeNucleusData?.afferences.map((item: any) => item.originOffset ?? null) ?? []
   const effPinOffsets = activeNucleusData?.efferences.map((item: any) => item.originOffset ?? null) ?? []
+  const afferenceCards = activeNucleusData?.afferences.map((item, idx) => ({
+    item,
+    idx,
+    cardId: `aff-${idx}`,
+  })) ?? []
+  const efferenceCards = activeNucleusData?.efferences.map((item, idx) => ({
+    item,
+    idx,
+    cardId: `eff-${idx}`,
+  })) ?? []
+  const orderedAfferenceCards = [...afferenceCards].sort((left, right) => {
+    if (left.cardId === activeOverlayCardId) return 1
+    if (right.cardId === activeOverlayCardId) return -1
+    return left.idx - right.idx
+  })
+  const orderedEfferenceCards = [...efferenceCards].sort((left, right) => {
+    if (left.cardId === activeOverlayCardId) return 1
+    if (right.cardId === activeOverlayCardId) return -1
+    return left.idx - right.idx
+  })
 
   return (
     <div className="scene-shell">
@@ -711,9 +734,11 @@ export default function ThalamusScene({
             openAfferenceIndex={openAfferenceIndex}
             openEfferenceIndex={openEfferenceIndex}
             onSelectAfference={(idx) => {
+              setActiveOverlayCardId(`aff-${idx}`)
               setOpenAfferenceIndex((current) => (current === idx ? null : idx))
             }}
             onSelectEfference={(idx) => {
+              setActiveOverlayCardId(`eff-${idx}`)
               setOpenEfferenceIndex((current) => (current === idx ? null : idx))
             }}
           />
@@ -770,18 +795,26 @@ export default function ThalamusScene({
                 </Html>
               )}
 
-              {activeNucleusData.afferences.map((item, idx) => {
+              {orderedAfferenceCards.map(({ item, idx, cardId }) => {
                 const isOpen = openAfferenceIndex === idx
                 return (
-                  <Html key={`aff-card-${idx}`} position={affCardPositions[idx] ?? leftPanelPos} center occlude={false}>
+                  <Html
+                    key={`aff-card-${idx}`}
+                    position={affCardPositions[idx] ?? leftPanelPos}
+                    center
+                    occlude={false}
+                    zIndexRange={cardId === activeOverlayCardId ? [220, 120] : [120, 0]}
+                  >
                     <section
-                      className={`thalamus-floating-panel thalamus-connection-card afference${affCompact ? ' compact' : ''}${isOpen ? ' expanded' : ' collapsed'}`}
+                      className={`thalamus-floating-panel thalamus-connection-card afference${affCompact ? ' compact' : ''}${isOpen ? ' expanded' : ' collapsed'}${cardId === activeOverlayCardId ? ' active-card' : ''}`}
                       aria-label={`Aferencia ${idx + 1}`}
                       onPointerDown={(event) => {
                         event.stopPropagation()
+                        setActiveOverlayCardId(cardId)
                       }}
                       onClick={(event) => {
                         event.stopPropagation()
+                        setActiveOverlayCardId(cardId)
                       }}
                     >
                       <button
@@ -793,6 +826,7 @@ export default function ThalamusScene({
                         }}
                         onClick={(event) => {
                           event.stopPropagation()
+                          setActiveOverlayCardId(cardId)
                           setOpenAfferenceIndex((current) => (current === idx ? null : idx))
                         }}
                       >
@@ -818,18 +852,26 @@ export default function ThalamusScene({
                 )
               })}
 
-              {activeNucleusData.efferences.map((item, idx) => {
+              {orderedEfferenceCards.map(({ item, idx, cardId }) => {
                 const isOpen = openEfferenceIndex === idx
                 return (
-                  <Html key={`eff-card-${idx}`} position={effCardPositions[idx] ?? rightPanelPos} center occlude={false}>
+                  <Html
+                    key={`eff-card-${idx}`}
+                    position={effCardPositions[idx] ?? rightPanelPos}
+                    center
+                    occlude={false}
+                    zIndexRange={cardId === activeOverlayCardId ? [220, 120] : [120, 0]}
+                  >
                     <section
-                      className={`thalamus-floating-panel thalamus-connection-card efference${effCompact ? ' compact' : ''}${isOpen ? ' expanded' : ' collapsed'}`}
+                      className={`thalamus-floating-panel thalamus-connection-card efference${effCompact ? ' compact' : ''}${isOpen ? ' expanded' : ' collapsed'}${cardId === activeOverlayCardId ? ' active-card' : ''}`}
                       aria-label={`Eferencia ${idx + 1}`}
                       onPointerDown={(event) => {
                         event.stopPropagation()
+                        setActiveOverlayCardId(cardId)
                       }}
                       onClick={(event) => {
                         event.stopPropagation()
+                        setActiveOverlayCardId(cardId)
                       }}
                     >
                       <button
@@ -841,6 +883,7 @@ export default function ThalamusScene({
                         }}
                         onClick={(event) => {
                           event.stopPropagation()
+                          setActiveOverlayCardId(cardId)
                           setOpenEfferenceIndex((current) => (current === idx ? null : idx))
                         }}
                       >

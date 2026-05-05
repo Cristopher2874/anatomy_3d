@@ -35,6 +35,12 @@ type ThalamusReferenceInfo = {
   learningHighlights: string[]
 }
 
+type BrainSceneCircuitMapping = {
+  nucleusKey: keyof typeof THALAMUS_NUCLEI
+  afferenceIndex: number
+  efferenceIndex: number
+}
+
 export const THALAMUS_PIECE_PALETTE = {
   thalamusgris: '#93a59b',
   thalamusamarillo: '#b7ab90',
@@ -351,6 +357,41 @@ export const THALAMUS_NUCLEI: Record<string, NucleoTalamico> = {
       'El pulvinar participa en integraci\u00f3n visuoatencional de alto nivel.',
     ],
   },
+}
+
+const BRAIN_SCENE_CIRCUIT_MAP: Record<string, BrainSceneCircuitMapping> = {
+  anterior: { nucleusKey: 'thalamusgris', afferenceIndex: 0, efferenceIndex: 0 },
+  dorsomedial: { nucleusKey: 'thalamusamarillo', afferenceIndex: 0, efferenceIndex: 0 },
+  dorsal_lateral: { nucleusKey: 'thalamusceleste_adelante', afferenceIndex: 0, efferenceIndex: 0 },
+  ventral_anterior: { nucleusKey: 'thalamusrosado', afferenceIndex: 0, efferenceIndex: 0 },
+  ventral_lateral: { nucleusKey: 'thalamusrojo', afferenceIndex: 0, efferenceIndex: 0 },
+  vpm: { nucleusKey: 'thalamusazul', afferenceIndex: 0, efferenceIndex: 0 },
+  vpl: { nucleusKey: 'thalamusazul', afferenceIndex: 1, efferenceIndex: 1 },
+  intralaminar: { nucleusKey: 'thalamusblanco', afferenceIndex: 0, efferenceIndex: 0 },
+  geniculado_medial: { nucleusKey: 'thalamusvioleta', afferenceIndex: 0, efferenceIndex: 0 },
+  geniculado_lateral: { nucleusKey: 'thalamusvioleta', afferenceIndex: 1, efferenceIndex: 1 },
+}
+
+export function getBrainSceneConnectionDetails(
+  sceneConnectionId: string,
+  tipo: 'aferencia' | 'eferencia',
+): { infoText: string; externalTargets: string[] } | null {
+  const mapping = BRAIN_SCENE_CIRCUIT_MAP[sceneConnectionId]
+  if (!mapping) return null
+
+  const nucleus = THALAMUS_NUCLEI[mapping.nucleusKey]
+  if (!nucleus) return null
+
+  const circuit = tipo === 'aferencia'
+    ? nucleus.afferences[mapping.afferenceIndex]
+    : nucleus.efferences[mapping.efferenceIndex]
+
+  if (!circuit) return null
+
+  return {
+    infoText: `${circuit.main} ${circuit.pathway} Rol funcional: ${circuit.functionRole}.`,
+    externalTargets: circuit.involvedStructures,
+  }
 }
 
 export function getThalamusSelectionInfo(nucleusId: string): ThalamusSelectionInfo | null {

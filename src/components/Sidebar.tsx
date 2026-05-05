@@ -296,7 +296,7 @@ export default function Sidebar({
             Tipo: {selectedConnection.tipo === 'eferencia' ? 'Eferencia' : 'Aferencia'}
           </p>
 
-          <p>{selectedPieceInfo?.infoText || selectedConnection.infoText}</p>
+          <p>{selectedConnection.infoText}</p>
           {selectedPieceInfo?.learningPoints && selectedPieceInfo.learningPoints.length > 0 ? (
             <div className="tools-card" aria-label="Aprendizaje anatómico de la pieza">
               <h3>Puntos de Aprendizaje</h3>
