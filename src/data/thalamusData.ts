@@ -35,6 +35,18 @@ type ThalamusReferenceInfo = {
   learningHighlights: string[]
 }
 
+export const THALAMUS_PIECE_PALETTE = {
+  thalamusgris: '#c9d7d0',
+  thalamusamarillo: '#d8d2c5',
+  thalamusceleste_adelante: '#cbd6e3',
+  thalamusceleste_atras: '#bcc9dc',
+  thalamusrosado: '#d8cbd6',
+  thalamusrojo: '#d9c7c2',
+  thalamusazul: '#c7d4db',
+  thalamusblanco: '#d9d8cf',
+  thalamusvioleta: '#cfcbe0',
+} as const
+
 export const THALAMUS_NUCLEI: Record<string, NucleoTalamico> = {
   thalamusgris: {
     name: 'N\u00facleo Anterior',
@@ -388,6 +400,18 @@ const THALAMUS_REFERENCE_PIECES: Record<string, ThalamusReferenceInfo> = {
 
 function normalizeMeshName(value: string): string {
   return value.toLowerCase().replace(/[^a-z0-9_]/g, '')
+}
+
+export function getThalamusMeshColor(meshName: string | null): string | null {
+  if (!meshName) return null
+
+  const normalized = normalizeMeshName(meshName)
+  if (normalized in THALAMUS_PIECE_PALETTE) {
+    return THALAMUS_PIECE_PALETTE[normalized as keyof typeof THALAMUS_PIECE_PALETTE]
+  }
+
+  const matchedKey = Object.keys(THALAMUS_PIECE_PALETTE).find((key) => normalized.includes(key))
+  return matchedKey ? THALAMUS_PIECE_PALETTE[matchedKey as keyof typeof THALAMUS_PIECE_PALETTE] : null
 }
 
 function humanizeMeshName(value: string): string {

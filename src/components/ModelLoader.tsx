@@ -17,6 +17,7 @@ import {
 import { clone } from 'three/examples/jsm/utils/SkeletonUtils.js'
 import { GLTFLoader } from 'three/examples/jsm/loaders/GLTFLoader.js'
 import { DRACOLoader } from 'three/examples/jsm/loaders/DRACOLoader.js'
+import { getThalamusMeshColor } from '../data/thalamusData'
 
 type MeshClickInfo = {
   name: string
@@ -168,7 +169,7 @@ const ModelRoot = forwardRef<any, ModelRootProps>(function ModelRoot({
   url,
   highlightedNodeNames,
   highlightColor = '#ff5a5f',
-  modelColor = '#ced8e6',
+  modelColor,
   explodeAmount = 0,
   clippingPlanes,
   xrayMode = false,
@@ -251,8 +252,13 @@ const ModelRoot = forwardRef<any, ModelRootProps>(function ModelRoot({
 
       if (isThalamus) {
         const mats = Array.isArray(obj.material) ? obj.material : [obj.material]
+        const thalamusBaseColor = getThalamusMeshColor(rawName)
         mats.forEach((mat) => {
           if (mat instanceof MeshPhysicalMaterial || mat instanceof MeshStandardMaterial) {
+            if (thalamusBaseColor && mat.color?.set) {
+              mat.color.set(thalamusBaseColor)
+              mat.userData.__baseColorHex = new Color(thalamusBaseColor).getHex()
+            }
             mat.transparent = false
             mat.opacity = 1
             mat.wireframe = false
@@ -332,7 +338,7 @@ const ModelRoot = forwardRef<any, ModelRootProps>(function ModelRoot({
           if (mat.userData.__baseColorHex === undefined) {
             mat.userData.__baseColorHex = anyMat.color.getHex()
           }
-          if (modelColor) {
+          if (typeof modelColor === 'string') {
             anyMat.color.set(modelColor)
           } else if (typeof mat.userData.__baseColorHex === 'number') {
             anyMat.color.setHex(mat.userData.__baseColorHex)

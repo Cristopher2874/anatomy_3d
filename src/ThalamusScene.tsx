@@ -1,6 +1,7 @@
 import {
   useCallback,
   useEffect,
+  useMemo,
   useRef,
   useState,
 } from 'react'
@@ -30,6 +31,7 @@ import {
 } from './utils/sceneUtils'
 import {
   THALAMUS_NUCLEI,
+  getThalamusMeshColor,
   MESH_NAME_TO_NUCLEUS_ID,
   getThalamusSelectionInfoFromMesh,
   type ThalamusSelectionInfo,
@@ -48,7 +50,6 @@ const SELECTION_FOCUS_RADIUS_MULTIPLIER = 1.55
 const PANEL_GRID_ROW_GAP_Y = 12
 const PANEL_GRID_COL_GAP_X = 12
 const PANEL_GRID_ROWS = 2
-
 type Vec3Tuple = [number, number, number]
 
 const normalizeMeshName = (value: string) => value.toLowerCase().replace(/[^a-z0-9_]/g, '')
@@ -281,6 +282,7 @@ export default function ThalamusScene({
   const activeNucleusData = activeNucleus ? THALAMUS_NUCLEI[activeNucleus] : null
   const affCount = activeNucleusData?.afferences.length ?? 0
   const effCount = activeNucleusData?.efferences.length ?? 0
+  const thalamusModelColor = useMemo(() => undefined, [])
 
   const HOME_VIEW_MULTIPLIER = 1
   const QUICK_VIEW_MULTIPLIER = 2
@@ -321,8 +323,14 @@ export default function ThalamusScene({
           anyMat.userData.__nucleusBaseOpacity = anyMat.opacity
           anyMat.userData.__nucleusBaseTransparent = anyMat.transparent
         }
+        if (anyMat.color?.set && anyMat.userData.__nucleusPieceColor === undefined) {
+          anyMat.userData.__nucleusPieceColor = getThalamusMeshColor(child.name || null)
+        }
 
         if (!hasSelection) {
+          if (anyMat.color?.set && anyMat.userData.__nucleusPieceColor) {
+            anyMat.color.set(anyMat.userData.__nucleusPieceColor)
+          }
           if (hasEmissive) {
             anyMat.emissive.setHex(anyMat.userData.__nucleusBaseEmissiveHex ?? 0x000000)
           }
@@ -338,6 +346,9 @@ export default function ThalamusScene({
         }
 
         if (isSelected) {
+          if (anyMat.color?.set && anyMat.userData.__nucleusPieceColor) {
+            anyMat.color.set(anyMat.userData.__nucleusPieceColor)
+          }
           if (hasEmissive) {
             anyMat.emissive.setHex(0x4a90e2)
           }
@@ -349,6 +360,9 @@ export default function ThalamusScene({
             anyMat.transparent = true
           }
         } else if (canFade) {
+          if (anyMat.color?.set && anyMat.userData.__nucleusPieceColor) {
+            anyMat.color.set(anyMat.userData.__nucleusPieceColor)
+          }
           if (hasEmissive) {
             anyMat.emissive.setHex(anyMat.userData.__nucleusBaseEmissiveHex ?? 0x000000)
           }
@@ -636,7 +650,7 @@ export default function ThalamusScene({
           <ModelLoader
             url={THALAMUS_MODEL_URL}
             ref={setModelGroup}
-            modelColor={modelColor}
+            modelColor={thalamusModelColor}
             explodeAmount={viewSettings.explodeAmount}
             onMeshClick={(info) => {
               if (!info) return
