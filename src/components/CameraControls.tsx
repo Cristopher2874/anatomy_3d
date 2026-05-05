@@ -21,28 +21,33 @@ export default function CameraControls({
   onQuickView,
   onModelColorChange,
 }: CameraControlsProps) {
-  const quickViews: Array<{ id: 'isometric' | 'front' | 'back' | 'left' | 'right' | 'top' | 'bottom'; label: string }> = [
-    { id: 'isometric', label: 'Iso' },
-    { id: 'front', label: 'Front' },
-    { id: 'back', label: 'Back' },
-    { id: 'left', label: 'Left' },
-    { id: 'right', label: 'Right' },
-    { id: 'top', label: 'Top' },
-    { id: 'bottom', label: 'Bottom' },
+  const quickViews: Array<{
+    id: 'isometric' | 'front' | 'back' | 'left' | 'right' | 'top' | 'bottom'
+    label: string
+    ariaLabel: string
+  }> = [
+    { id: 'isometric', label: 'Oblicua', ariaLabel: 'Vista oblicua anatómica' },
+    { id: 'front', label: 'Anterior', ariaLabel: 'Vista anterior' },
+    { id: 'back', label: 'Posterior', ariaLabel: 'Vista posterior' },
+    { id: 'left', label: 'Lat. izq.', ariaLabel: 'Vista lateral izquierda' },
+    { id: 'right', label: 'Lat. der.', ariaLabel: 'Vista lateral derecha' },
+    { id: 'top', label: 'Superior', ariaLabel: 'Vista superior' },
+    { id: 'bottom', label: 'Inferior', ariaLabel: 'Vista inferior' },
   ]
 
   return (
-    <div className="camera-controls" role="group" aria-label="Controles de camara">
+    <div className="camera-controls" role="group" aria-label="Controles de cámara">
       <button type="button" className="camera-btn home" onClick={onGoHome}>
         Vista Inicial
       </button>
 
-      <div className="quick-view-group" aria-label="Vistas rapidas">
+      <div className="quick-view-group" aria-label="Vistas anatómicas">
         {quickViews.map((view) => (
           <button
             key={view.id}
             type="button"
             className={`camera-btn quick ${activeQuickView === view.id ? 'active' : ''}`}
+            aria-label={view.ariaLabel}
             onClick={() => {
               onQuickView(view.id)
             }}
@@ -53,10 +58,10 @@ export default function CameraControls({
       </div>
 
       <div className="zoom-group" aria-label="Control de zoom">
-        <button type="button" className="camera-btn" onClick={onZoomIn} aria-label="Zoom in">
+        <button type="button" className="camera-btn" onClick={onZoomIn} aria-label="Acercar">
           +
         </button>
-        <button type="button" className="camera-btn" onClick={onZoomOut} aria-label="Zoom out">
+        <button type="button" className="camera-btn" onClick={onZoomOut} aria-label="Alejar">
           -
         </button>
       </div>
@@ -67,7 +72,7 @@ export default function CameraControls({
         onClick={onToggleAutoRotate}
         aria-pressed={isAutoRotate}
       >
-        Autorotacion {isAutoRotate ? 'ON' : 'OFF'}
+        Autorrotación {isAutoRotate ? 'ACTIVA' : 'INACTIVA'}
       </button>
 
       <label className="model-color-group" aria-label="Color del modelo">

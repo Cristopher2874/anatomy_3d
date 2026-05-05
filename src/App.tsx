@@ -235,13 +235,13 @@ function App() {
               className={`scene-tab ${activeScene === 'brain' ? 'active' : ''}`}
               onClick={() => setActiveScene('brain')}
             >
-              Brain
+              Encéfalo
             </button>
             <button
               className={`scene-tab ${activeScene === 'thalamus' ? 'active' : ''}`}
               onClick={() => setActiveScene('thalamus')}
             >
-              Thalamus
+              Tálamo
             </button>
           </div>
 

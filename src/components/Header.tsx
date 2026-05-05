@@ -11,7 +11,7 @@ export default function Header({ onOpenAbout }: HeaderProps) {
       </div>
 
       <nav aria-label="Navegacion principal" className="top-nav">
-        <a href="#">Inicio</a>
+        {/* <a href="#">Inicio</a> */}
         <button type="button" className="about-button" onClick={onOpenAbout}>
           Sobre el proyecto
         </button>
