@@ -282,8 +282,8 @@ const AFFERENT_SPECS: AfferentSpec[] = [
   {
     id: 'af_intralaminar_reticular',
     nucleusId: 'intralaminar',
-    nombre: 'Formación Reticular',
-    infoText: 'Aferencia hacia núcleos intralaminares desde formación reticular y fascículos espinotalámico y trigéminotalámico. Se relaciona con modulación de estados de conciencia y alerta.',
+    nombre: 'Lámina medular interna',
+    infoText: 'Aferencia hacia la lámina medular interna desde formación reticular y fascículos espinotalámico y trigéminotalámico. Se relaciona con modulación de estados de conciencia y alerta.',
     externalTargets: ['Formación reticular', 'Fascículo espinotalámico', 'Fascículo trigéminotalámico'],
     sourceDirection: [0.62, -0.08, 0.04],
     sourceDistanceMultiplier: 1.42,

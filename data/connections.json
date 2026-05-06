@@ -262,7 +262,7 @@
                        },
                        {
                            "id":  "intralaminar",
-                           "nombre":  "Núcleo Intralaminar",
+                           "nombre":  "Lámina medular interna",
                            "posicionLocal":  [
                                                  0.16,
                                                  0.02,
@@ -274,7 +274,7 @@
                                                    0
                                                ],
                            "colorLinea":  "#ef4444",
-                           "infoText":  "Eferencias de núcleos intralaminares hacia corteza cerebral por relevo en otros núcleos talámicos y hacia cuerpo estriado. Función: influye en estados de conciencia y alerta.",
+                           "infoText":  "Eferencias de la lámina medular interna hacia corteza cerebral por relevo en otros núcleos talámicos y hacia cuerpo estriado. Función: influye en estados de conciencia y alerta.",
                            "mappedNodes":  [
 
                                            ],

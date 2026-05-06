@@ -269,7 +269,7 @@ export const THALAMUS_NUCLEI: Record<string, NucleoTalamico> = {
   },
 
   thalamusblanco: {
-    name: 'Intralaminar',
+    name: 'Lámina Medular Interna',
     overview: 'Grupo tal\u00e1mico medial con proyecci\u00f3n cortical difusa y rol arousal-atenci\u00f3n.',
     functionCore: 'Modula estado de alerta, consciencia y facilitaci\u00f3n de respuesta cortical global.',
     afferences: [
@@ -410,6 +410,51 @@ export function getThalamusSelectionInfo(nucleusId: string): ThalamusSelectionIn
 }
 
 const THALAMUS_REFERENCE_PIECES: Record<string, ThalamusReferenceInfo> = {
+  thalamusverde: {
+    name: 'Núcleos de la línea media',
+    overview: 'Conjunto de núcleos talámicos mediales adyacentes al tercer ventrículo y a la lámina medular interna.',
+    functionCore: 'Participan en integración límbica, regulación de alerta y modulación autonómica y emocional.',
+    learningHighlights: [
+      'Se sitúan en la porción medial del tálamo, cerca de la línea media.',
+      'Se relacionan con memoria, vigilia y circuitos viscerolímbicos.',
+    ],
+  },
+  thalamusthalamus_redorange: {
+    name: 'Masa celular anterior',
+    overview: 'Territorio celular de referencia en la porción anterior del tálamo.',
+    functionCore: 'Sirve como referencia anatómica del polo anterior y su relación con circuitos límbicos anteriores.',
+    learningHighlights: [
+      'Ayuda a ubicar el sector anterior del complejo talámico.',
+      'Su posición orienta la lectura de la topografía diencefálica anterior.',
+    ],
+  },
+  thalamusthalamus_redred: {
+    name: 'Masa celular lateral',
+    overview: 'Territorio celular de referencia en el borde lateral del tálamo.',
+    functionCore: 'Aporta orientación topográfica para reconocer la organización lateral del tálamo.',
+    learningHighlights: [
+      'Delimita la porción lateral del complejo talámico en esta vista.',
+      'Útil para interpretar la relación con cápsula interna y estructuras vecinas.',
+    ],
+  },
+  thalamusthalamus_redblue: {
+    name: 'Masa celular medial',
+    overview: 'Territorio celular de referencia en la porción medial del tálamo, próximo a la línea media.',
+    functionCore: 'Sirve como guía anatómica para ubicar núcleos mediales y su relación con el tercer ventrículo.',
+    learningHighlights: [
+      'Se usa como punto de orientación para el sector medial talámico.',
+      'Facilita reconocer la vecindad con la línea media y estructuras diencefálicas mediales.',
+    ],
+  },
+  thalamusthalamus_redwhite: {
+    name: 'Lámina Medular Interna',
+    overview: 'Banda de sustancia blanca que organiza y separa grupos nucleares del tálamo en su porción interna.',
+    functionCore: 'Delimita y organiza la arquitectura talámica interna; sirve como referencia anatómica para la disposición de núcleos.',
+    learningHighlights: [
+      'Es una referencia útil para localizar núcleos talámicos internos.',
+      'Se relaciona con la organización topográfica y la separación de grupos nucleares.',
+    ],
+  },
   pineal: {
     name: 'Glándula Pineal',
     overview: 'Estructura epitalámica posterior relacionada con ritmos circadianos.',

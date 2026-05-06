@@ -110,6 +110,12 @@ export default function Sidebar({
         : 'Circuito Aferente'
     : null
 
+  const thalamusSelectionLabel = selectedThalamusInfo
+    ? selectedThalamusInfo.kind === 'reference'
+      ? 'Elemento anatómico seleccionado'
+      : 'Núcleo talámico seleccionado'
+    : null
+
   const tierClassFromValue = (tier: 'eferencia' | 'aferencia' | 'no_mapeada') => {
     if (tier === 'eferencia') return 'tier-eferente'
     if (tier === 'aferencia') return 'tier-aferente'
@@ -328,8 +334,12 @@ export default function Sidebar({
       ) : activeScene === 'thalamus' && selectedThalamusInfo ? (
         <>
           <h2>{selectedThalamusInfo.name}</h2>
-          <p className="connection-type">Núcleo talámico seleccionado</p>
-          <p>{selectedThalamusInfo.overview}</p>
+          {thalamusSelectionLabel ? <p className="connection-type">{thalamusSelectionLabel}</p> : null}
+
+          <div className="tools-card" aria-label="Descripción anatómica">
+            <h3>Descripción Anatómica</h3>
+            <p className="tool-caption">- {selectedThalamusInfo.overview}</p>
+          </div>
 
           <div className="tools-card" aria-label="Función principal del núcleo">
             <h3>Función Principal</h3>
