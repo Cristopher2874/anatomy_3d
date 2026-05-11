@@ -231,12 +231,12 @@ function App() {
 
         <section className="canvas-panel">
           <div className="scene-tabs">
-            {/* <button
+            <button
               className={`scene-tab ${activeScene === 'brain' ? 'active' : ''}`}
               onClick={() => setActiveScene('brain')}
             >
               Encéfalo
-            </button> */}
+            </button>
             <button
               className={`scene-tab ${activeScene === 'thalamus' ? 'active' : ''}`}
               onClick={() => setActiveScene('thalamus')}
